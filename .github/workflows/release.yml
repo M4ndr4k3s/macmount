@@ -1,7 +1,16 @@
 name: Release
 
 on:
+  # O acionamento manual com publish=true cria a tag e a Release a partir do
+  # arquivo VERSION, via `gh release create --target`. Existe porque nem todo
+  # ambiente de desenvolvimento tem permissão para dar push de tag; sem isso,
+  # publicar dependeria de criar a tag à mão no site.
   workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Criar a tag e a Release a partir do VERSION'
+        type: boolean
+        default: false
   push:
     tags: ['v*']
 
@@ -57,7 +66,7 @@ jobs:
       # Apple Silicon exige para abrir. As notas de versão explicam ao usuário
       # como abrir na primeira vez.
       - name: Anexar à Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -72,8 +81,15 @@ jobs:
           Segurança* e clique em *Abrir assim mesmo*.
           EOF
 
+          # --target cria a tag no commit atual quando ela ainda não existe, que
+          # é o caminho do acionamento manual. Num push de tag ela já existe e o
+          # --target é ignorado. Se a Release também já existir, o create falha e
+          # o upload --clobber apenas troca os arquivos.
           gh release create "v$version" \
+            --target "$GITHUB_SHA" \
             --title "MacMount $version" \
             --notes-file "$notes" \
             build/*.dmg build/*.zip \
             || gh release upload "v$version" build/*.dmg build/*.zip --clobber
+
+          echo "Release: $(gh release view "v$version" --json url --jq .url)"
