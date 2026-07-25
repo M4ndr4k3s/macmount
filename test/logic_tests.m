@@ -13,6 +13,7 @@
 #import <NetFS/NetFS.h>   // ENETFS* usados nos casos de erro
 
 #include <errno.h>
+#include <objc/runtime.h>   // class_copyPropertyList, no teste de cópia
 
 #import "MMMounter.h"
 #import "MMShare.h"
@@ -319,6 +320,110 @@ static void testRoundTrip(void) {
     }
 }
 
+/// A cópia percorre MMShareFieldNames(). Se alguém acrescentar uma @property e
+/// esquecer a lista, o campo novo some silenciosamente em todo -copy — inclusive
+/// no que a folha de edição faz ao abrir. Aqui a lista é conferida contra as
+/// propriedades declaradas de verdade, então esquecer vira falha de teste.
+static void testCopy(void) {
+    section(@"Cópia");
+
+    unsigned int count = 0;
+    objc_property_t *properties = class_copyPropertyList([MMShare class], &count);
+    NSMutableSet<NSString *> *declared = [NSMutableSet set];
+    for (unsigned int i = 0; i < count; i++) {
+        [declared addObject:@(property_getName(properties[i]))];
+    }
+    free(properties);
+
+    NSSet<NSString *> *listed = [NSSet setWithArray:MMShareFieldNames()];
+
+    NSMutableSet<NSString *> *missing = [declared mutableCopy];
+    [missing minusSet:listed];
+    checkBool(missing.count == 0,
+              ([NSString stringWithFormat:
+                @"toda @property de MMShare está em MMShareFieldNames() (faltando: %@)",
+                [[missing allObjects] componentsJoinedByString:@", "] ?: @"—"]));
+
+    NSMutableSet<NSString *> *extra = [listed mutableCopy];
+    [extra minusSet:declared];
+    checkBool(extra.count == 0,
+              ([NSString stringWithFormat:
+                @"MMShareFieldNames() não cita campo inexistente (sobrando: %@)",
+                [[extra allObjects] componentsJoinedByString:@", "] ?: @"—"]));
+
+    // Todo campo com valor diferente do padrão, para que um esquecido apareça.
+    MMShare *original = [[MMShare alloc] init];
+    original.name = @"Rede do escritório";
+    original.proto = MMProtocolAFP;
+    original.host = @"SERVIDOR";
+    original.port = 4450;
+    original.sharePath = @"Publico/Docs";
+    original.username = @"leandro";
+    original.guest = YES;
+    original.readOnly = YES;
+    original.hideOnDesktop = YES;
+    original.mountAtLogin = YES;
+    original.savePassword = NO;
+    original.reconnect = YES;
+
+    MMShare *clone = [original copy];
+    checkBool(clone != original, @"-copy devolve outro objeto");
+    for (NSString *field in MMShareFieldNames()) {
+        id a = [original valueForKey:field];
+        id b = [clone valueForKey:field];
+        checkBool([a isEqual:b],
+                  ([NSString stringWithFormat:@"campo \"%@\" sobrevive à cópia", field]));
+    }
+
+    // Alterar a cópia não pode alcançar o original.
+    clone.host = @"OUTRO";
+    checkEqualString(original.host, @"SERVIDOR", @"cópia é independente do original");
+}
+
+/// A separação de host e porta e a junção de caminho valem tanto para o que o
+/// usuário digita quanto para o que o sistema informa sobre um volume montado.
+/// Divergir entre os dois lados faz o app não reconhecer a própria montagem, por
+/// isso são uma função só — e por isso os casos de canto são testados aqui.
+static void testHostAndPathHelpers(void) {
+    section(@"Host, porta e caminho");
+
+    struct { NSString *input; NSString *host; NSInteger port; } cases[] = {
+        { @"SERVIDOR",          @"SERVIDOR",  0    },
+        { @"SERVIDOR:445",      @"SERVIDOR",  445  },
+        { @"servidor:",         @"servidor",  0    },   // forma do NFS
+        { @"[::1]",             @"::1",       0    },
+        { @"[::1]:445",         @"::1",       445  },
+        { @"fe80::1",           @"fe80::1",   0    },   // IPv6 sem colchetes
+        { @"servidor:porta",    @"servidor:porta", 0 }, // não é número: fica tudo
+        { @"",                  @"",          0    },
+    };
+
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        NSString *host = nil;
+        NSInteger port = -1;
+        MMSplitHostPort(cases[i].input, &host, &port);
+        checkEqualString(host, cases[i].host,
+                         ([NSString stringWithFormat:@"host de \"%@\"", cases[i].input]));
+        checkEqualInteger(port, cases[i].port,
+                          ([NSString stringWithFormat:@"porta de \"%@\"", cases[i].input]));
+    }
+
+    // Os ponteiros de saída são opcionais.
+    MMSplitHostPort(@"SERVIDOR:445", NULL, NULL);
+    checkBool(YES, @"aceita ponteiros de saída nulos sem estourar");
+
+    checkEqualString(MMJoinPathComponents(@"\\Publico\\Docs"), @"Publico/Docs",
+                     @"barra invertida do Windows vira barra");
+    checkEqualString(MMJoinPathComponents(@"/Publico//Docs/"), @"Publico/Docs",
+                     @"barras repetidas e nas pontas somem");
+    checkEqualString(MMJoinPathComponents(@"  Publico / Docs  "), @"Publico/Docs",
+                     @"espaço em volta de cada pedaço some");
+    checkEqualString(MMJoinPathComponents(@"Publico Geral"), @"Publico Geral",
+                     @"espaço no meio do nome é preservado");
+    checkEqualString(MMJoinPathComponents(nil), @"", @"nil vira string vazia");
+    checkEqualString(MMJoinPathComponents(@"///"), @"", @"só barras vira string vazia");
+}
+
 /// Reordenar arrastando é onde mora o clássico erro de um-a-mais: o índice que
 /// a NSTableView entrega é medido antes de o item sair do lugar.
 static void testReorderIndex(void) {
@@ -400,9 +505,11 @@ int main(int argc, const char *argv[]) {
 
         testMountURL();
         testUserInput();
+        testHostAndPathHelpers();
         testMountMatching();
         testStatusMessages();
         testRoundTrip();
+        testCopy();
         testValidation();
         testReorderIndex();
 

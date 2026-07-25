@@ -51,6 +51,65 @@ NSArray<NSNumber *> *MMAllProtocols(void) {
               @(MMProtocolWebDAV), @(MMProtocolWebDAVS) ];
 }
 
+NSArray<NSString *> *MMShareFieldNames(void) {
+    return @[ @"identifier", @"name", @"proto", @"host", @"port", @"sharePath",
+              @"username", @"guest", @"readOnly", @"hideOnDesktop",
+              @"mountAtLogin", @"savePassword", @"reconnect" ];
+}
+
+#pragma mark - Funções puras de host e caminho
+
+void MMSplitHostPort(NSString *hostPort,
+                     NSString *_Nullable *_Nullable outHost,
+                     NSInteger *_Nullable outPort) {
+    NSString *host = hostPort ?: @"";
+    NSInteger port = 0;
+
+    if ([host hasPrefix:@"["]) {
+        NSRange close = [host rangeOfString:@"]"];
+        if (close.location != NSNotFound) {
+            NSString *rest = [host substringFromIndex:NSMaxRange(close)];
+            host = [host substringWithRange:NSMakeRange(1, close.location - 1)];
+            if ([rest hasPrefix:@":"]) port = [[rest substringFromIndex:1] integerValue];
+        }
+    } else {
+        NSRange colon = [host rangeOfString:@":" options:NSBackwardsSearch];
+        if (colon.location != NSNotFound) {
+            NSString *head = [host substringToIndex:colon.location];
+            NSString *tail = [host substringFromIndex:NSMaxRange(colon)];
+            NSCharacterSet *nonDigits = [[NSCharacterSet decimalDigitCharacterSet] invertedSet];
+
+            // Um ":" sobrando em `head` significa IPv6 sem colchetes: aí a
+            // string inteira é o host, porque não há porta nenhuma ali.
+            BOOL headIsPlainHost = ([head rangeOfString:@":"].location == NSNotFound);
+            BOOL tailIsNumber = tail.length > 0
+                && [tail rangeOfCharacterFromSet:nonDigits].location == NSNotFound;
+
+            if (headIsPlainHost && tailIsNumber) {
+                host = head;
+                port = [tail integerValue];
+            } else if (headIsPlainHost && tail.length == 0) {
+                host = head;  // "servidor:" -> "servidor"
+            }
+        }
+    }
+
+    if (outHost) *outHost = host;
+    if (outPort) *outPort = port;
+}
+
+NSString *MMJoinPathComponents(NSString *_Nullable path) {
+    NSString *p = [(path ?: @"") stringByReplacingOccurrencesOfString:@"\\" withString:@"/"];
+
+    NSMutableArray<NSString *> *parts = [NSMutableArray array];
+    for (NSString *component in [p componentsSeparatedByString:@"/"]) {
+        NSString *trimmed = [component stringByTrimmingCharactersInSet:
+                             [NSCharacterSet whitespaceCharacterSet]];
+        if (trimmed.length > 0) [parts addObject:trimmed];
+    }
+    return [parts componentsJoinedByString:@"/"];
+}
+
 #pragma mark -
 
 @implementation MMShare
@@ -68,37 +127,22 @@ NSArray<NSNumber *> *MMAllProtocols(void) {
     return self;
 }
 
+/// Copiar campo a campo à mão convida ao esquecimento silencioso: um campo novo
+/// que ficasse de fora se perderia toda vez que a folha de edição chamasse -copy,
+/// sem erro nenhum para observar. Percorrer MMShareFieldNames() troca isso por
+/// uma lista que os testes conferem contra as @property declaradas.
 - (id)copyWithZone:(NSZone *)zone {
     MMShare *c = [[MMShare allocWithZone:zone] init];
-    c->_identifier = [_identifier copy];
-    c->_name = [_name copy];
-    c->_proto = _proto;
-    c->_host = [_host copy];
-    c->_port = _port;
-    c->_sharePath = [_sharePath copy];
-    c->_username = [_username copy];
-    c->_guest = _guest;
-    c->_readOnly = _readOnly;
-    c->_hideOnDesktop = _hideOnDesktop;
-    c->_mountAtLogin = _mountAtLogin;
-    c->_savePassword = _savePassword;
-    c->_reconnect = _reconnect;
+    for (NSString *field in MMShareFieldNames()) {
+        [c setValue:[self valueForKey:field] forKey:field];
+    }
     return c;
 }
 
 #pragma mark - Caminho e URL
 
 - (NSString *)normalizedSharePath {
-    NSString *p = self.sharePath ?: @"";
-    p = [p stringByReplacingOccurrencesOfString:@"\\" withString:@"/"];
-
-    NSMutableArray<NSString *> *parts = [NSMutableArray array];
-    for (NSString *c in [p componentsSeparatedByString:@"/"]) {
-        NSString *t = [c stringByTrimmingCharactersInSet:
-                       [NSCharacterSet whitespaceCharacterSet]];
-        if (t.length > 0) [parts addObject:t];
-    }
-    return [parts componentsJoinedByString:@"/"];
+    return MMJoinPathComponents(self.sharePath);
 }
 
 - (nullable NSURL *)mountURL {
@@ -145,44 +189,6 @@ NSArray<NSNumber *> *MMAllProtocols(void) {
 }
 
 #pragma mark - Parsing da entrada do usuário
-
-/// Separa "host", "host:445", "[::1]", "[::1]:445" em host e porta.
-static void MMSplitHostPort(NSString *hostPort, NSString **outHost, NSInteger *outPort) {
-    NSString *host = hostPort;
-    NSInteger port = 0;
-
-    if ([hostPort hasPrefix:@"["]) {
-        NSRange close = [hostPort rangeOfString:@"]"];
-        if (close.location != NSNotFound) {
-            host = [hostPort substringWithRange:NSMakeRange(1, close.location - 1)];
-            NSString *rest = [hostPort substringFromIndex:NSMaxRange(close)];
-            if ([rest hasPrefix:@":"]) port = [[rest substringFromIndex:1] integerValue];
-        }
-    } else {
-        NSRange colon = [hostPort rangeOfString:@":" options:NSBackwardsSearch];
-        if (colon.location != NSNotFound) {
-            NSString *head = [hostPort substringToIndex:colon.location];
-            NSString *tail = [hostPort substringFromIndex:NSMaxRange(colon)];
-            NSCharacterSet *nonDigits = [[NSCharacterSet decimalDigitCharacterSet] invertedSet];
-
-            // "servidor:" (típico de NFS, "servidor:/export") não traz porta, e
-            // vários ":" significam IPv6 sem colchetes — nos dois casos o host
-            // é a string inteira.
-            BOOL isPort = tail.length > 0
-                && [tail rangeOfCharacterFromSet:nonDigits].location == NSNotFound
-                && [head rangeOfString:@":"].location == NSNotFound;
-            if (isPort) {
-                host = head;
-                port = [tail integerValue];
-            } else if (tail.length == 0 && [head rangeOfString:@":"].location == NSNotFound) {
-                host = head;  // "servidor:" -> "servidor"
-            }
-        }
-    }
-
-    if (outHost) *outHost = host;
-    if (outPort) *outPort = port;
-}
 
 + (instancetype)shareWithUserInput:(NSString *)text {
     MMShare *share = [[MMShare alloc] init];

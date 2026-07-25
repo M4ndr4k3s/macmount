@@ -91,32 +91,23 @@
         [menu addItem:empty];
     }
 
-    BOOL anyUnmounted = NO;
     for (NSUInteger i = 0; i < shares.count; i++) {
         MMShare *share = shares[i];
         MMMountState state = [coordinator stateForShare:share];
-        if (state == MMMountStateUnmounted) anyUnmounted = YES;
+        BOOL settled = (state == MMMountStateMounted || state == MMMountStateUnmounted);
 
-        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:share.displayName
+        // Parado, o nome fala por si; em trânsito, ganha o estado como sufixo.
+        NSString *title = settled
+            ? share.displayName
+            : [NSString stringWithFormat:@"%@ — %@", share.displayName, MMMountStateTitle(state)];
+
+        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:title
                                                       action:@selector(toggleShare:)
                                                keyEquivalent:@""];
         item.target = self;
         item.tag = (NSInteger)i;
         item.state = (state == MMMountStateMounted) ? NSControlStateValueOn : NSControlStateValueOff;
-        item.enabled = (state == MMMountStateMounted || state == MMMountStateUnmounted);
-
-        switch (state) {
-            case MMMountStateMounting:
-                item.title = [NSString stringWithFormat:@"%@ — %@", share.displayName,
-                              NSLocalizedString(@"state.mounting", @"Montando…")];
-                break;
-            case MMMountStateUnmounting:
-                item.title = [NSString stringWithFormat:@"%@ — %@", share.displayName,
-                              NSLocalizedString(@"state.unmounting", @"Desmontando…")];
-                break;
-            default:
-                break;
-        }
+        item.enabled = settled;
 
         // Alt no item revela o volume no Finder em vez de desmontar.
         if (state == MMMountStateMounted) {
@@ -139,7 +130,7 @@
 
     [menu addItem:[NSMenuItem separatorItem]];
 
-    if (anyUnmounted) {
+    if ([coordinator hasSharesInState:MMMountStateUnmounted]) {
         NSMenuItem *mountAll = [[NSMenuItem alloc]
             initWithTitle:NSLocalizedString(@"bar.mountAll", @"Montar todos")
                    action:@selector(mountAll:) keyEquivalent:@""];
@@ -147,7 +138,7 @@
         [menu addItem:mountAll];
     }
 
-    if ([coordinator hasMountedShares]) {
+    if ([coordinator hasSharesInState:MMMountStateMounted]) {
         NSMenuItem *unmountAll = [[NSMenuItem alloc]
             initWithTitle:NSLocalizedString(@"bar.unmountAll", @"Desmontar todos")
                    action:@selector(unmountAll:) keyEquivalent:@""];

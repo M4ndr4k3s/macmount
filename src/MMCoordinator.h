@@ -21,6 +21,15 @@ typedef NS_ENUM(NSInteger, MMMountState) {
 /// Postada na fila principal quando qualquer estado muda.
 extern NSString *const MMCoordinatorDidChangeNotification;
 
+/// "Montado", "Montando…" — o estado como rótulo, já localizado. A janela e o
+/// menu da barra mostram o mesmo estado e precisam chamá-lo pelo mesmo nome.
+extern NSString *MMMountStateTitle(MMMountState state);
+
+/// O que o botão faz em seguida: "Montar" quando desmontado, "Desmontar" quando
+/// montado. Em trânsito devolve o mesmo texto de MMMountStateTitle, porque nesse
+/// instante não há ação a oferecer — só o que já está acontecendo.
+extern NSString *MMMountStateActionTitle(MMMountState state);
+
 @interface MMCoordinator : NSObject
 
 @property (class, readonly) MMCoordinator *shared;
@@ -42,8 +51,9 @@ extern NSString *const MMCoordinatorDidChangeNotification;
 /// Desmonta tudo que está montado.
 - (void)unmountAll;
 
-/// YES se algum compartilhamento da lista está montado agora.
-- (BOOL)hasMountedShares;
+/// YES se algum compartilhamento da lista está no estado indicado agora.
+/// Usada pela janela e pelo menu para decidir quais botões ficam ativos.
+- (BOOL)hasSharesInState:(MMMountState)state;
 
 /// Monta só o que está marcado como "montar ao iniciar".
 - (void)mountFlaggedForLogin;

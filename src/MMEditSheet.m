@@ -4,9 +4,22 @@
 
 #import "MMEditSheet.h"
 
+#import "MMAlerts.h"
 #import "MMBrowser.h"
 #import "MMKeychain.h"
 #import "MMStore.h"
+
+/// As caixas de opção do formulário são um espelho direto de campos BOOL do
+/// modelo; sem estes dois atalhos, cada campo custa uma linha comprida de
+/// NSControlStateValue em cada direção, doze ao todo, e o que a folha faz de
+/// verdade se perde no meio delas.
+static NSControlStateValue MMCheckState(BOOL on) {
+    return on ? NSControlStateValueOn : NSControlStateValueOff;
+}
+
+static BOOL MMIsChecked(NSButton *checkbox) {
+    return checkbox.state == NSControlStateValueOn;
+}
 
 @interface MMEditSheet () <MMBrowserDelegate, NSComboBoxDelegate>
 
@@ -200,12 +213,12 @@
 
     [self.protocolPopUp selectItemWithTag:s.proto];
 
-    self.guestCheck.state        = s.guest ? NSControlStateValueOn : NSControlStateValueOff;
-    self.savePasswordCheck.state = s.savePassword ? NSControlStateValueOn : NSControlStateValueOff;
-    self.readOnlyCheck.state     = s.readOnly ? NSControlStateValueOn : NSControlStateValueOff;
-    self.hideCheck.state         = s.hideOnDesktop ? NSControlStateValueOn : NSControlStateValueOff;
-    self.loginCheck.state        = s.mountAtLogin ? NSControlStateValueOn : NSControlStateValueOff;
-    self.reconnectCheck.state    = s.reconnect ? NSControlStateValueOn : NSControlStateValueOff;
+    self.guestCheck.state        = MMCheckState(s.guest);
+    self.savePasswordCheck.state = MMCheckState(s.savePassword);
+    self.readOnlyCheck.state     = MMCheckState(s.readOnly);
+    self.hideCheck.state         = MMCheckState(s.hideOnDesktop);
+    self.loginCheck.state        = MMCheckState(s.mountAtLogin);
+    self.reconnectCheck.state    = MMCheckState(s.reconnect);
 
     if (!self.isNew) {
         NSString *existing = [MMKeychain passwordForShare:s];
@@ -230,17 +243,17 @@
     s.host = parsedHost.host;
     s.port = parsedHost.port;
 
-    s.guest         = (self.guestCheck.state == NSControlStateValueOn);
-    s.savePassword  = (self.savePasswordCheck.state == NSControlStateValueOn);
-    s.readOnly      = (self.readOnlyCheck.state == NSControlStateValueOn);
-    s.hideOnDesktop = (self.hideCheck.state == NSControlStateValueOn);
-    s.mountAtLogin  = (self.loginCheck.state == NSControlStateValueOn);
-    s.reconnect     = (self.reconnectCheck.state == NSControlStateValueOn);
+    s.guest         = MMIsChecked(self.guestCheck);
+    s.savePassword  = MMIsChecked(self.savePasswordCheck);
+    s.readOnly      = MMIsChecked(self.readOnlyCheck);
+    s.hideOnDesktop = MMIsChecked(self.hideCheck);
+    s.mountAtLogin  = MMIsChecked(self.loginCheck);
+    s.reconnect     = MMIsChecked(self.reconnectCheck);
     return s;
 }
 
 - (void)updateEnabledStates {
-    BOOL guest = (self.guestCheck.state == NSControlStateValueOn);
+    BOOL guest = MMIsChecked(self.guestCheck);
     MMProtocol proto = (MMProtocol)self.protocolPopUp.selectedTag;
     BOOL supportsAuth = (proto != MMProtocolNFS);
 
@@ -298,12 +311,8 @@
 
     NSString *problem = [candidate validationError];
     if (problem != nil) {
-        NSAlert *alert = [[NSAlert alloc] init];
-        alert.alertStyle = NSAlertStyleWarning;
-        alert.messageText = NSLocalizedString(@"edit.invalid", @"Entrada incompleta");
-        alert.informativeText = problem;
-        [alert addButtonWithTitle:NSLocalizedString(@"alert.ok", @"OK")];
-        [alert beginSheetModalForWindow:self.sheet completionHandler:nil];
+        MMShowWarning(NSLocalizedString(@"edit.invalid", @"Entrada incompleta"),
+                      problem, self.sheet);
         return;
     }
 
@@ -336,13 +345,9 @@
     // iniciar não funciona" e "reconectar não funciona" semanas depois, sem
     // nenhuma pista ligando um ao outro.
     if (keychainProblem != nil) {
-        NSAlert *alert = [[NSAlert alloc] init];
-        alert.alertStyle = NSAlertStyleWarning;
-        alert.messageText = NSLocalizedString(@"edit.passwordNotSaved",
-                                              @"O compartilhamento foi salvo, mas a senha não");
-        alert.informativeText = keychainProblem;
-        [alert addButtonWithTitle:NSLocalizedString(@"alert.ok", @"OK")];
-        [alert runModal];
+        MMShowWarning(NSLocalizedString(@"edit.passwordNotSaved",
+                                        @"O compartilhamento foi salvo, mas a senha não"),
+                      keychainProblem, nil);
     }
 
     [self dismissWithResult:candidate];
