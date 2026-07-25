@@ -9,6 +9,9 @@
 #import "MMShare.h"
 #import "MMStore.h"
 
+/// Tipo de pasteboard só para reordenar a lista dentro da própria janela.
+static NSString *const MMShareRowType = @"com.mdksoftware.macmount.share-row";
+
 static NSString *const MMColumnShare = @"share";
 static NSString *const MMColumnState = @"state";
 static NSString *const MMColumnAction = @"action";
@@ -17,6 +20,8 @@ static NSString *const MMColumnAction = @"action";
 @property (nonatomic, strong) NSTableView *tableView;
 @property (nonatomic, strong) NSButton *removeButton;
 @property (nonatomic, strong) NSButton *editButton;
+@property (nonatomic, strong) NSButton *mountAllButton;
+@property (nonatomic, strong) NSButton *unmountAllButton;
 @property (nonatomic, strong) NSTextField *emptyLabel;
 @end
 
@@ -74,6 +79,12 @@ static NSString *const MMColumnAction = @"action";
     self.tableView.target = self;
     self.tableView.doubleAction = @selector(revealSelected:);
 
+    // Reordenar arrastando. O tipo é privado do app: arrastar para fora não
+    // faz sentido, e aceitar arrasto de fora menos ainda.
+    [self.tableView registerForDraggedTypes:@[ MMShareRowType ]];
+    [self.tableView setDraggingSourceOperationMask:NSDragOperationMove forLocal:YES];
+    [self.tableView setDraggingSourceOperationMask:NSDragOperationNone forLocal:NO];
+
     NSTableColumn *shareColumn = [[NSTableColumn alloc] initWithIdentifier:MMColumnShare];
     shareColumn.title = NSLocalizedString(@"column.share", @"Compartilhamento");
     shareColumn.minWidth = 200;
@@ -116,12 +127,16 @@ static NSString *const MMColumnAction = @"action";
     self.editButton = [self barButtonWithTitle:NSLocalizedString(@"bar.edit", @"Editar")
                                         action:@selector(editSelected:)
                                        tooltip:NSLocalizedString(@"bar.edit", @"Editar")];
-    NSButton *mountAll = [self barButtonWithTitle:NSLocalizedString(@"bar.mountAll", @"Montar todos")
-                                           action:@selector(mountAll:)
-                                          tooltip:NSLocalizedString(@"bar.mountAll", @"Montar todos")];
+    self.mountAllButton = [self barButtonWithTitle:NSLocalizedString(@"bar.mountAll", @"Montar todos")
+                                            action:@selector(mountAll:)
+                                           tooltip:NSLocalizedString(@"bar.mountAll", @"Montar todos")];
+    self.unmountAllButton = [self barButtonWithTitle:NSLocalizedString(@"bar.unmountAll", @"Desmontar todos")
+                                              action:@selector(unmountAll:)
+                                             tooltip:NSLocalizedString(@"bar.unmountAll", @"Desmontar todos")];
 
     NSStackView *bar = [NSStackView stackViewWithViews:@[
-        addButton, self.removeButton, self.editButton, [NSView new], mountAll
+        addButton, self.removeButton, self.editButton, [NSView new],
+        self.unmountAllButton, self.mountAllButton
     ]];
     bar.orientation = NSUserInterfaceLayoutOrientationHorizontal;
     bar.spacing = 8.0;
@@ -180,6 +195,15 @@ static NSString *const MMColumnAction = @"action";
     self.removeButton.enabled = hasSelection;
     self.editButton.enabled = hasSelection;
     self.emptyLabel.hidden = ([self shares].count > 0);
+
+    MMCoordinator *coordinator = [MMCoordinator shared];
+    BOOL anyMounted = [coordinator hasMountedShares];
+    BOOL anyUnmounted = NO;
+    for (MMShare *share in [self shares]) {
+        if ([coordinator stateForShare:share] == MMMountStateUnmounted) { anyUnmounted = YES; break; }
+    }
+    self.mountAllButton.enabled = anyUnmounted;
+    self.unmountAllButton.enabled = anyMounted;
 }
 
 #pragma mark - Ações
@@ -221,10 +245,49 @@ static NSString *const MMColumnAction = @"action";
     [[MMCoordinator shared] mountAll];
 }
 
+- (void)unmountAll:(id)sender {
+    [[MMCoordinator shared] unmountAll];
+}
+
 - (void)toggleRow:(NSButton *)sender {
     NSArray<MMShare *> *shares = [self shares];
     if (sender.tag < 0 || sender.tag >= (NSInteger)shares.count) return;
     [[MMCoordinator shared] toggleShare:shares[sender.tag]];
+}
+
+#pragma mark - Reordenar arrastando
+
+- (nullable id<NSPasteboardWriting>)tableView:(NSTableView *)tableView
+                       pasteboardWriterForRow:(NSInteger)row {
+    NSPasteboardItem *item = [[NSPasteboardItem alloc] init];
+    [item setString:[@(row) stringValue] forType:MMShareRowType];
+    return item;
+}
+
+- (NSDragOperation)tableView:(NSTableView *)tableView
+                validateDrop:(id<NSDraggingInfo>)info
+                 proposedRow:(NSInteger)row
+       proposedDropOperation:(NSTableViewDropOperation)operation {
+    // Só reordenação: soltar "sobre" uma linha não significa nada aqui.
+    if (operation != NSTableViewDropAbove) return NSDragOperationNone;
+    if (info.draggingSource != tableView) return NSDragOperationNone;
+    return NSDragOperationMove;
+}
+
+- (BOOL)tableView:(NSTableView *)tableView
+       acceptDrop:(id<NSDraggingInfo>)info
+              row:(NSInteger)row
+    dropOperation:(NSTableViewDropOperation)operation {
+    NSString *value = [info.draggingPasteboard stringForType:MMShareRowType];
+    if (value == nil) return NO;
+
+    NSInteger from = value.integerValue;
+    if (from < 0 || from >= (NSInteger)[self shares].count) return NO;
+
+    // O `row` que chega aqui é o índice de drop da tabela, medido antes de o
+    // item sair do lugar; MMDestinationIndexForMove faz esse ajuste.
+    [[MMStore shared] moveShareFromIndex:(NSUInteger)from toDropIndex:(NSUInteger)row];
+    return YES;
 }
 
 - (void)revealSelected:(id)sender {

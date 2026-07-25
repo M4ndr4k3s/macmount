@@ -46,6 +46,11 @@ extern NSArray<NSNumber *> *MMAllProtocols(void);
 @property (nonatomic, assign) BOOL mountAtLogin;
 @property (nonatomic, assign) BOOL savePassword;           // guardar no Keychain
 
+/// Remontar sozinho quando a rede voltar ou o Mac acordar. A tentativa é sempre
+/// silenciosa: sem senha guardada e sem ser convidado não há o que tentar sem
+/// abrir um diálogo, e diálogo surpresa é pior do que ficar desmontado.
+@property (nonatomic, assign) BOOL reconnect;
+
 /// URL de montagem, ex.: smb://SERVIDOR/Publico%20Geral. nil se faltar servidor.
 /// O usuário nunca entra na URL — vai separado para o NetFS.
 - (nullable NSURL *)mountURL;

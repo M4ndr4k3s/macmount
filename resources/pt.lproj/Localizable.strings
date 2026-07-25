@@ -80,6 +80,7 @@
 "edit.readOnly"        = "Montar somente leitura";
 "edit.hide"            = "Não mostrar na mesa";
 "edit.mountAtLogin"    = "Montar ao iniciar a sessão";
+"edit.reconnect"       = "Reconectar quando a rede voltar";
 "edit.save"            = "Salvar";
 "edit.invalid"         = "Entrada incompleta";
 
@@ -91,6 +92,7 @@
 "bar.remove"        = "Remover";
 "bar.edit"          = "Editar";
 "bar.mountAll"      = "Montar todos";
+"bar.unmountAll"     = "Desmontar todos";
 "remove.confirmFmt" = "Remover “%@”?";
 "remove.confirm"    = "Remover";
 "remove.hint"       = "O compartilhamento sai da lista. Nada é apagado no servidor.";
@@ -120,3 +122,10 @@
 "menu.window"     = "Janela";
 "menu.minimize"   = "Minimizar";
 "menu.close"      = "Fechar";
+
+/* Preferências e notificações */
+"menu.showDockIcon" = "Mostrar ícone no Dock";
+"menu.notifyOnLogin" = "Avisar ao montar no login";
+"notify.oneMounted"  = "1 compartilhamento montado.";
+"notify.allMountedFmt" = "%lu compartilhamentos montados.";
+"notify.partialFmt"  = "%lu de %lu compartilhamentos montados.";

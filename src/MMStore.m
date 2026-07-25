@@ -10,6 +10,18 @@ static NSString *const MMStoreFolderName = @"MacMount";
 static NSString *const MMStoreFileName = @"shares.json";
 static NSInteger const MMStoreFormatVersion = 1;
 
+NSUInteger MMDestinationIndexForMove(NSUInteger from, NSUInteger dropIndex, NSUInteger count) {
+    if (count == 0 || from >= count) return NSNotFound;
+    if (dropIndex > count) return NSNotFound;
+
+    // Soltar logo antes ou logo depois de si mesmo não muda a ordem.
+    if (dropIndex == from || dropIndex == from + 1) return NSNotFound;
+
+    // Arrastando para baixo, a remoção do item de origem puxa tudo que está
+    // abaixo dele uma posição acima — inclusive o ponto de inserção.
+    return (dropIndex > from) ? dropIndex - 1 : dropIndex;
+}
+
 @interface MMStore ()
 @property (nonatomic, strong) NSMutableArray<MMShare *> *mutableShares;
 @end
@@ -146,11 +158,13 @@ static NSInteger const MMStoreFormatVersion = 1;
     return index == NSNotFound ? nil : self.mutableShares[index];
 }
 
-- (void)moveShareFromIndex:(NSUInteger)from toIndex:(NSUInteger)to {
-    if (from >= self.mutableShares.count || to > self.mutableShares.count) return;
+- (void)moveShareFromIndex:(NSUInteger)from toDropIndex:(NSUInteger)dropIndex {
+    NSUInteger destination = MMDestinationIndexForMove(from, dropIndex, self.mutableShares.count);
+    if (destination == NSNotFound) return;
+
     MMShare *s = self.mutableShares[from];
     [self.mutableShares removeObjectAtIndex:from];
-    [self.mutableShares insertObject:s atIndex:MIN(to, self.mutableShares.count)];
+    [self.mutableShares insertObject:s atIndex:destination];
     [self commit];
 }
 

@@ -82,6 +82,7 @@ NSArray<NSNumber *> *MMAllProtocols(void) {
     c->_hideOnDesktop = _hideOnDesktop;
     c->_mountAtLogin = _mountAtLogin;
     c->_savePassword = _savePassword;
+    c->_reconnect = _reconnect;
     return c;
 }
 
@@ -264,6 +265,9 @@ static void MMSplitHostPort(NSString *hostPort, NSString **outHost, NSInteger *o
     s.mountAtLogin  = [obj[@"mountAtLogin"] boolValue];
     // Ausente em cofres antigos significa "sim" — é o padrão do app.
     s.savePassword  = obj[@"savePassword"] ? [obj[@"savePassword"] boolValue] : YES;
+    // Já `reconnect` ausente significa "não": é recurso novo, e ligar sozinho
+    // em entradas antigas seria mudar o comportamento pelas costas do usuário.
+    s.reconnect     = [obj[@"reconnect"] boolValue];
 
     return s;
 }
@@ -282,6 +286,7 @@ static void MMSplitHostPort(NSString *hostPort, NSString **outHost, NSInteger *o
     d[@"hideOnDesktop"] = @(self.hideOnDesktop);
     d[@"mountAtLogin"]  = @(self.mountAtLogin);
     d[@"savePassword"]  = @(self.savePassword);
+    d[@"reconnect"]     = @(self.reconnect);
     return d;
 }
 

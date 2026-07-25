@@ -15,8 +15,14 @@ Feito pela **Mdk Software**.
 - Cola o caminho do Windows direto: `\\SERVIDOR\Publico` vira `smb://SERVIDOR/Publico` sozinho
 - Senha guardada no **Keychain**, no mesmo formato que o Finder usa — a credencial é a mesma
   do "Conectar ao servidor" do sistema, não uma cópia
-- Montar ao iniciar a sessão
+- **Montar todos** e **desmontar todos** de uma vez
+- Montar ao iniciar a sessão, com aviso por notificação quando termina
+- **Reconectar sozinho** quando a rede volta ou o Mac acorda — em silêncio, sem diálogo
+  surpresa: sem credencial pronta, prefere ficar desmontado
+- **Viver só na barra de menus**, sem ícone no Dock, se você quiser
+- Reordenar a lista arrastando
 - Descoberta de servidores na rede local via Bonjour, para não ter que digitar o nome
+  (não encontra PCs Windows — veja a seção sobre Windows abaixo)
 - Opções por compartilhamento: somente leitura, não mostrar na mesa, conectar como convidado
 - Interface em português e inglês
 

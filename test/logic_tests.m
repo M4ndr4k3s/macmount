@@ -16,6 +16,7 @@
 
 #import "MMMounter.h"
 #import "MMShare.h"
+#import "MMStore.h"
 
 static int gChecks = 0;
 static int gFails = 0;
@@ -281,6 +282,7 @@ static void testRoundTrip(void) {
     original.hideOnDesktop = YES;
     original.mountAtLogin = YES;
     original.savePassword = NO;
+    original.reconnect = YES;
 
     MMShare *restored = [MMShare shareWithJSONObject:[original JSONObject]];
     checkBool(restored != nil, @"JSON válido reconstrói a entrada");
@@ -295,6 +297,7 @@ static void testRoundTrip(void) {
     checkBool(restored.readOnly && restored.hideOnDesktop && restored.mountAtLogin,
               @"opções booleanas preservadas");
     checkBool(!restored.savePassword, @"savePassword NO preservado");
+    checkBool(restored.reconnect == original.reconnect, @"reconnect preservado");
 
     // Cofres gravados antes de savePassword existir devem virar "sim".
     MMShare *legacy = [MMShare shareWithJSONObject:@{ @"host": @"SERVIDOR",
@@ -314,6 +317,53 @@ static void testRoundTrip(void) {
                   || [key isEqualToString:@"savePassword"],
                   ([NSString stringWithFormat:@"chave \"%@\" não guarda senha", key]));
     }
+}
+
+/// Reordenar arrastando é onde mora o clássico erro de um-a-mais: o índice que
+/// a NSTableView entrega é medido antes de o item sair do lugar.
+static void testReorderIndex(void) {
+    section(@"Índice de reordenação");
+
+    // Lista [A B C D], índices 0..3. Soltar acima da linha N chega como N.
+    checkEqualInteger((NSInteger)MMDestinationIndexForMove(0, 2, 4), 1,
+                      @"arrastar para baixo desconta a própria remoção");
+    checkEqualInteger((NSInteger)MMDestinationIndexForMove(0, 4, 4), 3,
+                      @"arrastar o primeiro para o fim");
+    checkEqualInteger((NSInteger)MMDestinationIndexForMove(3, 0, 4), 0,
+                      @"arrastar o último para o começo");
+    checkEqualInteger((NSInteger)MMDestinationIndexForMove(2, 1, 4), 1,
+                      @"arrastar para cima não desconta nada");
+    checkEqualInteger((NSInteger)MMDestinationIndexForMove(1, 3, 4), 2,
+                      @"descer uma posição");
+
+    // Soltar em cima de si mesmo, dos dois lados, não é movimento.
+    checkBool(MMDestinationIndexForMove(2, 2, 4) == NSNotFound,
+              @"soltar na própria posição não move");
+    checkBool(MMDestinationIndexForMove(2, 3, 4) == NSNotFound,
+              @"soltar logo abaixo de si mesmo não move");
+
+    // Entradas impossíveis.
+    checkBool(MMDestinationIndexForMove(4, 0, 4) == NSNotFound, @"origem fora da lista");
+    checkBool(MMDestinationIndexForMove(0, 5, 4) == NSNotFound, @"destino fora da lista");
+    checkBool(MMDestinationIndexForMove(0, 0, 0) == NSNotFound, @"lista vazia");
+
+    // Propriedade que importa: o resultado é sempre um índice válido de
+    // inserção depois da remoção, ou seja, no máximo count-1.
+    for (NSUInteger count = 1; count <= 6; count++) {
+        for (NSUInteger from = 0; from < count; from++) {
+            for (NSUInteger drop = 0; drop <= count; drop++) {
+                NSUInteger dest = MMDestinationIndexForMove(from, drop, count);
+                if (dest == NSNotFound) continue;
+                if (dest > count - 1) {
+                    checkBool(NO, ([NSString stringWithFormat:
+                        @"destino %lu fora da faixa (from %lu, drop %lu, count %lu)",
+                        (unsigned long)dest, (unsigned long)from,
+                        (unsigned long)drop, (unsigned long)count]));
+                }
+            }
+        }
+    }
+    checkBool(YES, @"destino sempre dentro da lista, em todas as combinações até 6 itens");
 }
 
 static void testValidation(void) {
@@ -354,6 +404,7 @@ int main(int argc, const char *argv[]) {
         testStatusMessages();
         testRoundTrip();
         testValidation();
+        testReorderIndex();
 
         fprintf(stdout, "\n%d verificações, %d falha(s).\n", gChecks, gFails);
         return gFails == 0 ? 0 : 1;

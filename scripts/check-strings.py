@@ -22,6 +22,10 @@ ENTRY_RE = re.compile(r'^\s*"((?:[^"\\]|\\.)*)"\s*=\s*"((?:[^"\\]|\\.)*)"\s*;', 
 
 COMMENT_RE = re.compile(r'/\*.*?\*/', re.S)
 
+# Especificador de formato completo, com bandeiras, largura, precisão e o
+# modificador de tamanho — %lu e %u não são intercambiáveis.
+FORMAT_RE = re.compile(r'%[-+ #0]*[0-9*]*(?:\.[0-9*]+)?(?:hh|h|ll|l|q|z|t|j|L)?[@diouxXeEfgGcsSpaA%]')
+
 
 def keys_used(src_dir):
     """Chaves referenciadas no código, mapeadas para os arquivos que as usam."""
@@ -107,12 +111,13 @@ def main():
             problems += 1
 
     # Especificadores de formato precisam bater entre os idiomas, senão o
-    # -[NSString stringWithFormat:] lê lixo da pilha em um deles.
+    # -[NSString stringWithFormat:] lê lixo da pilha em um deles. O modificador
+    # de tamanho faz parte da comparação: %lu e %u consomem larguras diferentes.
     reference = lproj_dirs[0]
     for lproj in lproj_dirs[1:]:
         for key in sorted(set(all_defined.get(reference, {})) & set(all_defined.get(lproj, {}))):
-            a = re.findall(r"%[@dsf%]", all_defined[reference][key])
-            b = re.findall(r"%[@dsf%]", all_defined[lproj][key])
+            a = FORMAT_RE.findall(all_defined[reference][key])
+            b = FORMAT_RE.findall(all_defined[lproj][key])
             if a != b:
                 print("erro: \"%s\" tem formatos diferentes entre %s (%s) e %s (%s)"
                       % (key, reference, "".join(a) or "nenhum", lproj, "".join(b) or "nenhum"))

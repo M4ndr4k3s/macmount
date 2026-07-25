@@ -16,22 +16,31 @@
 9. i18n pt-BR/en-US
 10. Build universal, verificações estáticas e release por tag no GitHub Actions
 
-## Fase 2 — Depois do primeiro uso real
+## Fase 2 — Feita na v0.2.0
 
-O que entra aqui depende do que quebrar no teste em máquina de verdade. Candidatos:
+Depois do primeiro uso real: v0.1.0 montou um compartilhamento do Windows 10/11 a partir
+de um MacBook Air 2011 com High Sierra. O que o uso pediu em seguida:
 
-- **Reordenar a lista** por arrastar (o `MMStore` já tem `moveShareFromIndex:toIndex:`,
-  falta ligar na tabela)
+1. **Ocultar o ícone do Dock**, vivendo só na barra de menus (`MMPrefs.showDockIcon`)
+2. **Desmontar todos**, na janela e no menu da barra
+3. **Reordenar a lista** arrastando
+4. **Reconectar sozinho** quando a rede volta ou o Mac acorda, sempre em silêncio
+5. **Notificação** ao concluir a montagem do login
+
+## Fase 3 — Candidatos
+
 - **Perfis por rede**: montar só quando estiver em determinado Wi-Fi ou faixa de IP
-- **Reconectar sozinho** quando a rede volta, para compartilhamento marcado como persistente
 - **Encontrar PCs Windows na rede.** O Bonjour só acha macOS, Samba e NAS; o Windows não
   anuncia por lá. Cobrir isso exigiria WS-Discovery (o que o Explorer passou a usar depois
   que o SMBv1 morreu) ou consulta de nomes NetBIOS — nenhum dos dois tem API pronta no
   macOS, seria implementar o protocolo na mão. Só vale se digitar o IP incomodar de verdade.
 - **Importar** os servidores que já estão nos favoritos do Finder
-- **Notificação** ao concluir montagem no login, em vez de silêncio total
 - **Submontagem melhor**: hoje `Publico/Docs` só casa por igualdade exata do caminho; casar
   com o share pai já montado e abrir a subpasta seria mais amigável
+- **Notificação na API nova.** O aviso do login usa `NSUserNotification`, obsoleto desde o
+  macOS 11 e possivelmente inerte em versões recentes. O substituto,
+  `UNUserNotificationCenter`, é 10.14+ — usar exigiria caminho duplo. Enquanto o alvo for o
+  High Sierra, fica como está.
 
 ## Fase 3 — Distribuição
 

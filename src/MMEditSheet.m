@@ -30,6 +30,7 @@
 @property (nonatomic, strong) NSButton *readOnlyCheck;
 @property (nonatomic, strong) NSButton *hideCheck;
 @property (nonatomic, strong) NSButton *loginCheck;
+@property (nonatomic, strong) NSButton *reconnectCheck;
 
 @end
 
@@ -107,6 +108,7 @@
     self.readOnlyCheck = [self checkbox:NSLocalizedString(@"edit.readOnly", @"Montar somente leitura")];
     self.hideCheck = [self checkbox:NSLocalizedString(@"edit.hide", @"Não mostrar na mesa")];
     self.loginCheck = [self checkbox:NSLocalizedString(@"edit.mountAtLogin", @"Montar ao iniciar a sessão")];
+    self.reconnectCheck = [self checkbox:NSLocalizedString(@"edit.reconnect", @"Reconectar quando a rede voltar")];
 
     NSGridView *grid = [NSGridView gridViewWithViews:@[
         @[ [self label:NSLocalizedString(@"edit.name", @"Nome:")],       self.nameField ],
@@ -120,6 +122,7 @@
         @[ [NSGridCell emptyContentView], self.readOnlyCheck ],
         @[ [NSGridCell emptyContentView], self.hideCheck ],
         @[ [NSGridCell emptyContentView], self.loginCheck ],
+        @[ [NSGridCell emptyContentView], self.reconnectCheck ],
     ]];
     grid.translatesAutoresizingMaskIntoConstraints = NO;
     grid.rowSpacing = 8.0;
@@ -169,6 +172,11 @@
                                                backing:NSBackingStoreBuffered
                                                  defer:NO];
     self.sheet.contentView = content;
+
+    // A altura vem do conteúdo, não de um número escrito à mão: acrescentar uma
+    // linha ao formulário não pode espremer o resto nem cortar os botões.
+    NSSize fitting = [content fittingSize];
+    [self.sheet setContentSize:NSMakeSize(MAX(480.0, fitting.width), fitting.height)];
 }
 
 #pragma mark - Campos <-> modelo
@@ -187,6 +195,7 @@
     self.readOnlyCheck.state     = s.readOnly ? NSControlStateValueOn : NSControlStateValueOff;
     self.hideCheck.state         = s.hideOnDesktop ? NSControlStateValueOn : NSControlStateValueOff;
     self.loginCheck.state        = s.mountAtLogin ? NSControlStateValueOn : NSControlStateValueOff;
+    self.reconnectCheck.state    = s.reconnect ? NSControlStateValueOn : NSControlStateValueOff;
 
     if (!self.isNew) {
         NSString *existing = [MMKeychain passwordForShare:s];
@@ -216,6 +225,7 @@
     s.readOnly      = (self.readOnlyCheck.state == NSControlStateValueOn);
     s.hideOnDesktop = (self.hideCheck.state == NSControlStateValueOn);
     s.mountAtLogin  = (self.loginCheck.state == NSControlStateValueOn);
+    s.reconnect     = (self.reconnectCheck.state == NSControlStateValueOn);
     return s;
 }
 

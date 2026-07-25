@@ -39,8 +39,20 @@ extern NSString *const MMCoordinatorDidChangeNotification;
 /// Monta tudo que ainda não está montado.
 - (void)mountAll;
 
+/// Desmonta tudo que está montado.
+- (void)unmountAll;
+
+/// YES se algum compartilhamento da lista está montado agora.
+- (BOOL)hasMountedShares;
+
 /// Monta só o que está marcado como "montar ao iniciar".
 - (void)mountFlaggedForLogin;
+
+/// Tenta remontar, em silêncio, o que está marcado como "reconectar" e caiu.
+/// Nunca abre diálogo: sem senha no Keychain e sem ser convidado, desiste em
+/// vez de interromper o usuário. Chamado pelo MMReconnector quando a rede volta
+/// ou o Mac acorda.
+- (void)reconnectFlaggedSharesSilently;
 
 /// Abre o volume montado no Finder. NO se não estiver montado.
 - (BOOL)revealShareInFinder:(MMShare *)share;

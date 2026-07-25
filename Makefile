@@ -22,7 +22,7 @@ TEST_FLAGS = -fobjc-arc -O1 -Wall -Wextra -Wno-unused-parameter \
              -Werror=objc-method-access -Werror=incompatible-pointer-types \
              -Isrc
 
-TEST_SOURCES = src/MMShare.m src/MMMounter.m test/logic_tests.m
+TEST_SOURCES = src/MMShare.m src/MMMounter.m src/MMStore.m test/logic_tests.m
 
 .PHONY: all check test smoke strings dist clean icon mount-smoke
 

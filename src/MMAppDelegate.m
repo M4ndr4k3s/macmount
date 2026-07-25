@@ -5,9 +5,10 @@
 #import "MMAppDelegate.h"
 
 #import "MMCoordinator.h"
-#import "MMEditSheet.h"
 #import "MMLoginItem.h"
 #import "MMMainWindow.h"
+#import "MMPrefs.h"
+#import "MMReconnector.h"
 #import "MMShare.h"
 #import "MMStatusMenu.h"
 #import "MMStore.h"
@@ -18,8 +19,10 @@ static NSTimeInterval const MMLoginModeTimeout = 120.0;
 
 @interface MMAppDelegate ()
 @property (nonatomic, strong) MMStatusMenu *statusMenu;
+@property (nonatomic, strong) MMReconnector *reconnector;
 @property (nonatomic, strong) NSTimer *loginWatchdog;
 @property (nonatomic, strong) NSDate *loginStartedAt;
+@property (nonatomic, assign) NSUInteger loginMountTarget;
 @end
 
 @implementation MMAppDelegate
@@ -38,7 +41,34 @@ static NSTimeInterval const MMLoginModeTimeout = 120.0;
     self.statusMenu = [[MMStatusMenu alloc] init];
     [self.statusMenu install];
 
+    self.reconnector = [[MMReconnector alloc] init];
+    [self.reconnector start];
+
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(applyDockIconPreference)
+                                                 name:MMPrefsDidChangeNotification
+                                               object:nil];
+    [self applyDockIconPreference];
+
     [[MMMainWindow shared] showAndActivate];
+}
+
+/// Com o ícone escondido o app vira "accessory": some do Dock e do alternador
+/// de apps, ficando só na barra de menus. O menu principal também deixa de ser
+/// exibido, mas continua montado de propósito — é ele que faz Cmd+C e Cmd+V
+/// funcionarem nos campos de texto da folha de edição.
+- (void)applyDockIconPreference {
+    NSApplicationActivationPolicy wanted = MMPrefs.showDockIcon
+        ? NSApplicationActivationPolicyRegular
+        : NSApplicationActivationPolicyAccessory;
+
+    if (NSApp.activationPolicy == wanted) return;
+    [NSApp setActivationPolicy:wanted];
+
+    // Voltar para "regular" sem reativar deixa o app sem foco e sem menu.
+    if (wanted == NSApplicationActivationPolicyRegular) {
+        [NSApp activateIgnoringOtherApps:YES];
+    }
 }
 
 - (BOOL)applicationShouldHandleReopen:(NSApplication *)sender hasVisibleWindows:(BOOL)flag {
@@ -52,8 +82,10 @@ static NSTimeInterval const MMLoginModeTimeout = 120.0;
 }
 
 - (void)applicationWillTerminate:(NSNotification *)notification {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
     [self.loginWatchdog invalidate];
     self.loginWatchdog = nil;
+    [self.reconnector stop];
     [self.statusMenu remove];
 }
 
@@ -62,6 +94,13 @@ static NSTimeInterval const MMLoginModeTimeout = 120.0;
 - (void)startLoginMount {
     MMCoordinator *coordinator = [MMCoordinator shared];
     coordinator.silent = YES;
+
+    NSUInteger flagged = 0;
+    for (MMShare *share in [MMStore shared].shares) {
+        if (share.mountAtLogin) flagged++;
+    }
+    self.loginMountTarget = flagged;
+
     [coordinator mountFlaggedForLogin];
 
     self.loginStartedAt = [NSDate date];
@@ -79,11 +118,54 @@ static NSTimeInterval const MMLoginModeTimeout = 120.0;
     if (timedOut && !done) {
         NSLog(@"[MacMount] montagem no login excedeu %.0fs; encerrando.", MMLoginModeTimeout);
     }
-    if (done || timedOut) {
-        [timer invalidate];
-        self.loginWatchdog = nil;
-        [NSApp terminate:nil];
+    if (!done && !timedOut) return;
+
+    [timer invalidate];
+    self.loginWatchdog = nil;
+    [self notifyLoginMountResult];
+
+    // A notificação é entregue de forma assíncrona pelo sistema; encerrar no
+    // mesmo ciclo de run loop a engoliria antes de aparecer.
+    [self performSelector:@selector(terminateNow) withObject:nil afterDelay:1.5];
+}
+
+- (void)terminateNow {
+    [NSApp terminate:nil];
+}
+
+/// Notificação nativa do 10.13. O UNUserNotificationCenter só existe do 10.14
+/// em diante, então usar a API nova exigiria caminho duplo ou abandonar o
+/// High Sierra — que é justamente o alvo deste app. O aviso de obsolescência
+/// é silenciado de propósito.
+- (void)notifyLoginMountResult {
+    if (!MMPrefs.notifyOnLoginMount || self.loginMountTarget == 0) return;
+
+    NSUInteger mounted = 0;
+    for (MMShare *share in [MMStore shared].shares) {
+        if (!share.mountAtLogin) continue;
+        if ([[MMCoordinator shared] stateForShare:share] == MMMountStateMounted) mounted++;
     }
+
+    NSString *body;
+    if (mounted == self.loginMountTarget) {
+        body = (mounted == 1)
+            ? NSLocalizedString(@"notify.oneMounted", @"1 compartilhamento montado.")
+            : [NSString stringWithFormat:
+               NSLocalizedString(@"notify.allMountedFmt", @"%lu compartilhamentos montados."),
+               (unsigned long)mounted];
+    } else {
+        body = [NSString stringWithFormat:
+                NSLocalizedString(@"notify.partialFmt", @"%lu de %lu compartilhamentos montados."),
+                (unsigned long)mounted, (unsigned long)self.loginMountTarget];
+    }
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    NSUserNotification *note = [[NSUserNotification alloc] init];
+    note.title = NSLocalizedString(@"app.name", @"MacMount");
+    note.informativeText = body;
+    [[NSUserNotificationCenter defaultUserNotificationCenter] deliverNotification:note];
+#pragma clang diagnostic pop
 }
 
 #pragma mark - Menu principal

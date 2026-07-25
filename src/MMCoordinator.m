@@ -209,10 +209,53 @@ NSString *const MMCoordinatorDidChangeNotification = @"MMCoordinatorDidChangeNot
     }
 }
 
+- (void)unmountAll {
+    for (MMShare *share in [MMStore shared].shares) {
+        if ([self stateForShare:share] == MMMountStateMounted) [self unmountShare:share];
+    }
+}
+
+- (BOOL)hasMountedShares {
+    for (MMShare *share in [MMStore shared].shares) {
+        if ([self stateForShare:share] == MMMountStateMounted) return YES;
+    }
+    return NO;
+}
+
 - (void)mountFlaggedForLogin {
     for (MMShare *share in [MMStore shared].shares) {
         if (!share.mountAtLogin) continue;
         if ([self stateForShare:share] == MMMountStateUnmounted) [self mountShare:share];
+    }
+}
+
+- (void)reconnectFlaggedSharesSilently {
+    for (MMShare *share in [MMStore shared].shares) {
+        if (!share.reconnect) continue;
+        if ([self stateForShare:share] != MMMountStateUnmounted) continue;
+        if ([share validationError] != nil) continue;
+
+        // Só dá para tentar sem interface se houver credencial pronta. Sem
+        // isso a montagem abriria o diálogo do sistema do nada, possivelmente
+        // com a tela bloqueada ou o usuário longe da máquina.
+        NSString *password = share.savePassword ? [MMKeychain passwordForShare:share] : nil;
+        if (!share.guest && password.length == 0) continue;
+
+        [self setTransientState:MMMountStateMounting forShare:share];
+
+        __weak typeof(self) weakSelf = self;
+        [MMMounter mountShare:share password:password allowUI:NO
+                   completion:^(NSString *_Nullable mountPoint, NSError *_Nullable error) {
+            typeof(self) self_ = weakSelf;
+            if (self_ == nil) return;
+            [self_ clearTransientStateForShare:share];
+            if (error != nil) {
+                // Silêncio é proposital: a rede pode ter voltado pela metade e
+                // a próxima tentativa vem no próximo evento.
+                NSLog(@"[MacMount] reconexão de %@ falhou: %@",
+                      share.displayName, error.localizedDescription);
+            }
+        }];
     }
 }
 

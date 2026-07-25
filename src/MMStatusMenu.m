@@ -6,6 +6,7 @@
 
 #import "MMCoordinator.h"
 #import "MMMainWindow.h"
+#import "MMPrefs.h"
 #import "MMShare.h"
 #import "MMStore.h"
 
@@ -143,6 +144,14 @@
         [menu addItem:mountAll];
     }
 
+    if ([coordinator hasMountedShares]) {
+        NSMenuItem *unmountAll = [[NSMenuItem alloc]
+            initWithTitle:NSLocalizedString(@"bar.unmountAll", @"Desmontar todos")
+                   action:@selector(unmountAll:) keyEquivalent:@""];
+        unmountAll.target = self;
+        [menu addItem:unmountAll];
+    }
+
     NSMenuItem *add = [[NSMenuItem alloc]
         initWithTitle:NSLocalizedString(@"menu.add", @"Adicionar compartilhamento…")
                action:@selector(addShare:) keyEquivalent:@""];
@@ -154,6 +163,24 @@
                action:@selector(openWindow:) keyEquivalent:@""];
     open.target = self;
     [menu addItem:open];
+
+    [menu addItem:[NSMenuItem separatorItem]];
+
+    // Único lugar onde o interruptor cabe: desligado o ícone do Dock, o menu
+    // principal do app some junto, e este menu vira a casa das preferências.
+    NSMenuItem *dockIcon = [[NSMenuItem alloc]
+        initWithTitle:NSLocalizedString(@"menu.showDockIcon", @"Mostrar ícone no Dock")
+               action:@selector(toggleDockIcon:) keyEquivalent:@""];
+    dockIcon.target = self;
+    dockIcon.state = MMPrefs.showDockIcon ? NSControlStateValueOn : NSControlStateValueOff;
+    [menu addItem:dockIcon];
+
+    NSMenuItem *notify = [[NSMenuItem alloc]
+        initWithTitle:NSLocalizedString(@"menu.notifyOnLogin", @"Avisar ao montar no login")
+               action:@selector(toggleLoginNotification:) keyEquivalent:@""];
+    notify.target = self;
+    notify.state = MMPrefs.notifyOnLoginMount ? NSControlStateValueOn : NSControlStateValueOff;
+    [menu addItem:notify];
 
     [menu addItem:[NSMenuItem separatorItem]];
 
@@ -184,6 +211,18 @@
 
 - (void)mountAll:(id)sender {
     [[MMCoordinator shared] mountAll];
+}
+
+- (void)unmountAll:(id)sender {
+    [[MMCoordinator shared] unmountAll];
+}
+
+- (void)toggleDockIcon:(id)sender {
+    MMPrefs.showDockIcon = !MMPrefs.showDockIcon;
+}
+
+- (void)toggleLoginNotification:(id)sender {
+    MMPrefs.notifyOnLoginMount = !MMPrefs.notifyOnLoginMount;
 }
 
 - (void)addShare:(id)sender {

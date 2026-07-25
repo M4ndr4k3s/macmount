@@ -44,6 +44,9 @@ FRAMEWORKS=(
   -framework NetFS
   -framework Security
   -framework CoreGraphics
+  # SCNetworkReachability, usado pelo MMReconnector — o Network framework, que
+  # seria o substituto moderno, só existe do macOS 10.14 em diante.
+  -framework SystemConfiguration
 )
 
 # Só o que este script produz. Apagar o diretório inteiro levaria junto o dmg e

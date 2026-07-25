@@ -78,6 +78,7 @@
 "edit.readOnly"        = "Mount read-only";
 "edit.hide"            = "Do not show on the desktop";
 "edit.mountAtLogin"    = "Mount at login";
+"edit.reconnect"       = "Reconnect when the network returns";
 "edit.save"            = "Save";
 "edit.invalid"         = "Incomplete entry";
 
@@ -89,6 +90,7 @@
 "bar.remove"        = "Remove";
 "bar.edit"          = "Edit";
 "bar.mountAll"      = "Mount all";
+"bar.unmountAll"     = "Unmount all";
 "remove.confirmFmt" = "Remove “%@”?";
 "remove.confirm"    = "Remove";
 "remove.hint"       = "The share leaves this list. Nothing is deleted on the server.";
@@ -118,3 +120,10 @@
 "menu.window"     = "Window";
 "menu.minimize"   = "Minimize";
 "menu.close"      = "Close";
+
+/* Preferences and notifications */
+"menu.showDockIcon" = "Show icon in the Dock";
+"menu.notifyOnLogin" = "Notify when mounting at login";
+"notify.oneMounted"  = "1 share mounted.";
+"notify.allMountedFmt" = "%lu shares mounted.";
+"notify.partialFmt"  = "%lu of %lu shares mounted.";

@@ -31,18 +31,36 @@ src/
   MMShare          modelo + montagem de URL + parser de UNC/URL   ← lógica pura, testada
   MMMounter        NetFSMountURLSync, desmontar, getfsstat        ← lógica pura, testada
   MMKeychain       kSecClassInternetPassword (mesmo item do Finder)
-  MMStore          shares.json em Application Support, 0600
+  MMStore          shares.json em Application Support, 0600      ← índice de reordenação testado
+  MMPrefs          NSUserDefaults: ícone no Dock, aviso do login
   MMLoginItem      LaunchAgent em ~/Library/LaunchAgents
   MMCoordinator    estado de montagem — a janela e o menu são duas visões dele
+  MMReconnector    SCNetworkReachability + despertar → remonta em silêncio
   MMBrowser        Bonjour _smb._tcp / _afpovertcp._tcp
-  MMMainWindow     NSTableView com a lista
+  MMMainWindow     NSTableView com a lista, reordenável arrastando
   MMEditSheet      folha de adicionar/editar (NSGridView, 10.12+)
-  MMStatusMenu     NSStatusItem, ícone desenhado em código
+  MMStatusMenu     NSStatusItem, ícone desenhado em código, preferências
   MMAppDelegate    ciclo de vida, menu principal, modo login, smoke test
 ```
 
-`MMShare` e `MMMounter` são deliberadamente livres de UI: é o que `test/logic_tests.m`
-consegue exercitar sem Mac de verdade e sem servidor.
+`MMShare`, `MMMounter` e a função `MMDestinationIndexForMove` do `MMStore` são
+deliberadamente livres de UI: é o que `test/logic_tests.m` consegue exercitar sem Mac de
+verdade e sem servidor.
+
+## Onde cada coisa é gravada
+
+| O quê | Onde | Chave |
+|---|---|---|
+| Compartilhamentos | `~/Library/Application Support/MacMount/shares.json` (0600) | — |
+| Senhas | Keychain, *internet password* | — |
+| Ícone no Dock | NSUserDefaults | `MMShowDockIcon` (padrão YES) |
+| Aviso ao montar no login | NSUserDefaults | `MMNotifyOnLoginMount` (padrão YES) |
+| Montar ao iniciar | `~/Library/LaunchAgents/com.mdksoftware.macmount.login.plist` | — |
+
+Campos booleanos novos no `shares.json` entram com padrão que **preserva o comportamento
+anterior** para quem já tem o arquivo: `savePassword` ausente vale YES porque sempre foi o
+padrão; `reconnect` ausente vale NO porque é recurso novo e ligar sozinho seria mudar o
+comportamento pelas costas do usuário.
 
 ## Comandos
 
