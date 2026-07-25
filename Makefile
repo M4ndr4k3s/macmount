@@ -24,7 +24,7 @@ TEST_FLAGS = -fobjc-arc -O1 -Wall -Wextra -Wno-unused-parameter \
 
 TEST_SOURCES = src/MMShare.m src/MMMounter.m src/MMStore.m test/logic_tests.m
 
-.PHONY: all check test smoke strings dist clean icon mount-smoke
+.PHONY: all check test smoke strings dist clean mount-smoke
 
 all:
 	@scripts/build-app.sh $(BUILD)
@@ -65,10 +65,6 @@ dist: check
 	@rm -rf $(BUILD)/dmg
 	@echo "==> $(BUILD)/MacMount-$(VERSION)-universal.dmg"
 	@echo "==> $(BUILD)/MacMount-$(VERSION)-universal.zip"
-
-# Regera o PNG do ícone a partir do script (roda em qualquer sistema).
-icon:
-	@python3 scripts/gen-icon.py resources/icon.png
 
 clean:
 	@rm -rf $(BUILD)

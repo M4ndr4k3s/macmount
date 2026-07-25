@@ -85,6 +85,12 @@ static NSTimeInterval const MMLoginModeTimeout = 120.0;
 }
 
 - (BOOL)applicationShouldHandleReopen:(NSApplication *)sender hasVisibleWindows:(BOOL)flag {
+    // No modo login o processo existe só para montar e encerrar. Um evento de
+    // reabertura chegando aqui — o Dock, o Finder ou o próprio launchd pedindo
+    // para "abrir o app" — materializaria a janela no meio do login. É o único
+    // caminho que ainda podia trazê-la de volta, e ele fica fechado.
+    if (self.mountAtLoginMode) return NO;
+
     [[MMMainWindow shared] showAndActivate];
     return YES;
 }

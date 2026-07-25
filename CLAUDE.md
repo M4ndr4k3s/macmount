@@ -71,11 +71,15 @@ make test     testes de lógica
 make smoke    constrói a interface fora da tela
 make dist     dmg + zip
 make strings  só a checagem de localização (roda em qualquer sistema, inclusive Linux)
-make icon     regera resources/icon.png
 ```
 
-`make strings` e `python3 scripts/gen-icon.py` são os únicos que rodam fora do macOS —
-use-os sempre que mexer em texto de interface ou no ícone.
+`resources/icon.png` é arte fornecida (1024×1024 RGBA), não gerada — o build só converte
+para `.icns` com `sips` e `iconutil`. O ícone da barra de menus é outra coisa: desenhado em
+código no `MMStatusMenu`, monocromático e marcado como template, porque a barra precisa
+inverter sozinha entre claro e escuro. Ícone colorido não serve lá.
+
+`make strings` é o único que roda fora do macOS — use sempre que mexer em texto de
+interface.
 
 ## Regras de trabalho
 

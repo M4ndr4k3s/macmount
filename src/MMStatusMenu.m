@@ -37,35 +37,38 @@
     self.statusItem = nil;
 }
 
-/// Glifo de rede desenhado em código: um nó ligado a dois. Imagem template, então
-/// o sistema inverte sozinho em barra clara/escura — nada de PNG por densidade.
+/// Silhueta de disco externo, para conversar com o ícone do Dock. Desenhada em
+/// código e marcada como template: a barra de menus exige monocromático com
+/// alfa, porque é o sistema que inverte a cor entre barra clara e escura —
+/// reduzir o ícone colorido do app aqui daria uma mancha que some no escuro.
 /// SF Symbols resolveria em uma linha, mas só existe do macOS 11 em diante.
 - (NSImage *)statusImage {
     NSSize size = NSMakeSize(18.0, 18.0);
     NSImage *image = [NSImage imageWithSize:size flipped:NO drawingHandler:^BOOL(NSRect rect) {
-        NSPoint top   = NSMakePoint(9.0, 13.5);
-        NSPoint left  = NSMakePoint(4.0, 4.5);
-        NSPoint right = NSMakePoint(14.0, 4.5);
-        CGFloat radius = 2.4;
-
         [[NSColor blackColor] setStroke];
         [[NSColor blackColor] setFill];
 
-        NSBezierPath *links = [NSBezierPath bezierPath];
-        links.lineWidth = 1.4;
-        links.lineCapStyle = NSLineCapStyleRound;
-        [links moveToPoint:top];   [links lineToPoint:left];
-        [links moveToPoint:top];   [links lineToPoint:right];
-        [links moveToPoint:left];  [links lineToPoint:right];
-        [links stroke];
+        // Corpo do disco. Meio pixel de deslocamento para o traço cair sobre a
+        // grade e não sair borrado em tela sem retina.
+        NSRect body = NSMakeRect(2.5, 4.5, 13.0, 9.0);
+        NSBezierPath *shell = [NSBezierPath bezierPathWithRoundedRect:body
+                                                              xRadius:2.2
+                                                              yRadius:2.2];
+        shell.lineWidth = 1.4;
+        [shell stroke];
 
-        for (NSValue *value in @[ [NSValue valueWithPoint:top],
-                                  [NSValue valueWithPoint:left],
-                                  [NSValue valueWithPoint:right] ]) {
-            NSPoint p = value.pointValue;
-            NSRect dot = NSMakeRect(p.x - radius, p.y - radius, radius * 2, radius * 2);
-            [[NSBezierPath bezierPathWithOvalInRect:dot] fill];
-        }
+        // Emenda entre tampa e carcaça, o que faz a forma ler como "disco" e
+        // não como um retângulo qualquer.
+        NSBezierPath *seam = [NSBezierPath bezierPath];
+        seam.lineWidth = 1.2;
+        [seam moveToPoint:NSMakePoint(NSMinX(body), 10.0)];
+        [seam lineToPoint:NSMakePoint(NSMaxX(body), 10.0)];
+        [seam stroke];
+
+        // Luz de atividade.
+        NSRect led = NSMakeRect(4.6, 6.4, 2.0, 2.0);
+        [[NSBezierPath bezierPathWithOvalInRect:led] fill];
+
         return YES;
     }];
     image.template = YES;

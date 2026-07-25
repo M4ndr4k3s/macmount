@@ -16,7 +16,7 @@ Feito pela **Mdk Software**.
 - Senha guardada no **Keychain**, no mesmo formato que o Finder usa — a credencial é a mesma
   do "Conectar ao servidor" do sistema, não uma cópia
 - **Montar todos** e **desmontar todos** de uma vez
-- Montar ao iniciar a sessão, com aviso por notificação quando termina
+- Montar ao iniciar a sessão sem abrir janela nenhuma, com aviso por notificação ao terminar
 - **Reconectar sozinho** quando a rede volta ou o Mac acorda — em silêncio, sem diálogo
   surpresa: sem credencial pronta, prefere ficar desmontado
 - **Viver só na barra de menus**, sem ícone no Dock, se você quiser
@@ -64,6 +64,22 @@ Detalhes que costumam travar a primeira conexão:
   é algo que o app possa contornar.
 - Na rede do Windows, o perfil precisa estar como **Rede privada**; em *Rede pública* o
   compartilhamento fica bloqueado pelo firewall.
+
+## A janela abre sozinha no login
+
+Não deveria. Com *Montar ao iniciar a sessão* marcada, o MacMount é lançado pelo LaunchAgent
+em `~/Library/LaunchAgents/com.mdksoftware.macmount.login.plist`, monta em silêncio e
+encerra — sem janela e sem ícone no Dock.
+
+Se ainda assim a janela aparecer no login, é porque o app também está nos **Itens de
+Início** do sistema, provavelmente adicionado à mão. Aí quem abre é o macOS, não o
+LaunchAgent, e ele abre o app normalmente. Remova em *Ajustes do Sistema › Geral › Itens de
+Início* (no High Sierra: *Preferências do Sistema › Usuários e Grupos › Itens de Início*) e
+deixe o controle com a caixa dentro do app.
+
+Se não houver senha guardada no Keychain, o diálogo de autenticação **do sistema** pode
+aparecer no login — esse não é uma janela do MacMount, é o macOS pedindo a credencial, e é o
+que permite a montagem acontecer. Guardar a senha no Keychain elimina o pedido.
 
 ## Senha guardada, e o app pede de novo
 
@@ -142,9 +158,16 @@ do 10.15 em diante, daí AppKit com a interface construída em código.
 
 ### Ícone
 
-`resources/icon.png` é gerado por `scripts/gen-icon.py`, um rasterizador em Python puro — dá
-para editar o ícone em qualquer sistema, não só no Mac. `make icon` regera o PNG; o build
-converte para `.icns` com `sips` e `iconutil`.
+São dois, e por um bom motivo.
+
+**Dock:** `resources/icon.png`, 1024×1024 RGBA — um disco externo com o glifo de rede
+gravado na tampa. É arte fornecida, não gerada; o build só converte para `.icns` com `sips`
+e `iconutil`. Para trocar, substitua o PNG mantendo 1024×1024 com transparência.
+
+**Barra de menus:** desenhado em código, em `MMStatusMenu`. Não é o ícone do Dock reduzido,
+e não pode ser: a barra exige uma *imagem template* — monocromática, definida só pelo alfa —
+porque é o sistema que escolhe a cor conforme a barra esteja clara ou escura. Um ícone
+colorido encolhido a 18 pontos vira uma mancha e desaparece no modo escuro.
 
 ## Onde ficam os dados
 
