@@ -297,8 +297,45 @@ static NSTimeInterval const MMLoginModeTimeout = 120.0;
         ok = NO;
     }
 
+    if (![self checkLoginItemWiring]) ok = NO;
+
     if (ok) fprintf(stdout, "smoke: interface construída sem erros\n");
     return ok;
+}
+
+/// A montagem no login já quebrou uma vez do jeito mais silencioso possível: a
+/// caixa gravava a marca no shares.json e nada instalava o LaunchAgent, então
+/// não havia erro nenhum para observar — apenas nada acontecia. Nenhum teste de
+/// lógica pegaria isso, porque o defeito era a ausência de uma chamada.
+///
+/// Este exercício vai da lista até o arquivo em disco. Só roda quando não há
+/// agente instalado, para nunca mexer na configuração de quem realmente usa.
+- (BOOL)checkLoginItemWiring {
+    if (MMLoginItem.isEnabled) {
+        fprintf(stdout, "smoke: já há um agente de login instalado; verificação pulada\n");
+        return YES;
+    }
+
+    MMShare *flagged = [MMShare shareWithUserInput:@"smb://SERVIDOR/Publico"];
+    flagged.mountAtLogin = YES;
+
+    [MMLoginItem syncWithShares:@[ flagged ]];
+    BOOL installed = MMLoginItem.isEnabled;
+
+    [MMLoginItem syncWithShares:@[]];
+    BOOL removed = !MMLoginItem.isEnabled;
+
+    if (!installed) {
+        fprintf(stderr, "smoke: entrada marcada para o login não instalou o LaunchAgent\n");
+        return NO;
+    }
+    if (!removed) {
+        fprintf(stderr, "smoke: LaunchAgent sobreviveu à remoção da última entrada de login\n");
+        return NO;
+    }
+
+    fprintf(stdout, "smoke: LaunchAgent instala e remove conforme a lista\n");
+    return YES;
 }
 
 @end

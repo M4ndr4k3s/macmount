@@ -53,8 +53,11 @@ de um MacBook Air 2011 com High Sierra. O que o uso pediu em seguida:
 ## Limites conhecidos
 
 - **Nenhum Mac de desenvolvimento.** Build e verificação acontecem só no CI. Existe um
-  MacBook Air 2011 com High Sierra para teste manual — a v0.1.0 foi confirmada nele —, mas
-  a confirmação vem depois do release, nunca antes.
+  MacBook Air 2011 com High Sierra para teste manual — v0.1.0, v0.2.0 e v0.2.1 foram
+  confirmadas nele, incluindo montagem de compartilhamento Windows 10/11, montagem no login
+  e senha guardada no Keychain —, mas a confirmação vem depois do release, nunca antes.
+  Os dois defeitos da v0.2.0 (LaunchAgent nunca instalado e senha não gravada em silêncio)
+  escaparam justamente por isso, e os dois eram invisíveis: nenhum produzia erro.
 - **Sem notarização**, primeira abertura exige o caminho manual (documentado no README).
 - **NFS não usa Keychain** — o protocolo não autentica por senha.
 - **Xcode 16.4 fixado.** Quando o runner deixar de oferecer essa versão, será preciso
