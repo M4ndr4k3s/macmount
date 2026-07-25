@@ -56,12 +56,12 @@ jobs:
           if-no-files-found: warn
 
   mount:
-    name: Montagem real contra Samba local (informativo)
+    name: Montagem real contra Samba local
     runs-on: macos-15
-    # Depende de o runner deixar levantar um smbd e de o NetFS aceitar o
-    # loopback. Quando funciona, é a única prova de que o caminho de montagem
-    # inteiro roda de ponta a ponta; quando não, não deve barrar o PR.
-    continue-on-error: true
+    # Já não é informativo: passou de forma estável levantando um smbd no runner
+    # e montando por loopback. É a única prova automatizada de que o caminho
+    # inteiro — NetFSMountURLSync, detecção por getfsstat e desmontagem — roda
+    # de verdade, então uma quebra aqui deve barrar o merge.
 
     steps:
       - uses: actions/checkout@v4

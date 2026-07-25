@@ -24,6 +24,10 @@ O que entra aqui depende do que quebrar no teste em máquina de verdade. Candida
   falta ligar na tabela)
 - **Perfis por rede**: montar só quando estiver em determinado Wi-Fi ou faixa de IP
 - **Reconectar sozinho** quando a rede volta, para compartilhamento marcado como persistente
+- **Encontrar PCs Windows na rede.** O Bonjour só acha macOS, Samba e NAS; o Windows não
+  anuncia por lá. Cobrir isso exigiria WS-Discovery (o que o Explorer passou a usar depois
+  que o SMBv1 morreu) ou consulta de nomes NetBIOS — nenhum dos dois tem API pronta no
+  macOS, seria implementar o protocolo na mão. Só vale se digitar o IP incomodar de verdade.
 - **Importar** os servidores que já estão nos favoritos do Finder
 - **Notificação** ao concluir montagem no login, em vez de silêncio total
 - **Submontagem melhor**: hoje `Publico/Docs` só casa por igualdade exata do caminho; casar

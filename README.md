@@ -37,6 +37,28 @@ primeira abertura o sistema reclama:
 
 Depois disso ele abre normalmente.
 
+## Montando um compartilhamento do Windows 10/11
+
+O caso mais comum, e o mais tranquilo: Windows 10 e 11 falam SMB2/SMB3, que o macOS 10.13
+suporta nativamente. Nada do atrito de NAS antigo preso em SMBv1.
+
+No Windows, compartilhe a pasta (botão direito › *Propriedades* › *Compartilhamento*). No
+MacMount, clique em **+** e preencha o servidor com o nome do PC ou o IP — ou simplesmente
+cole o caminho de rede inteiro, `\\MEU-PC\Publico`, que o app separa nos campos certos.
+
+Detalhes que costumam travar a primeira conexão:
+
+- **A descoberta Bonjour não encontra PCs Windows.** O Windows não anuncia compartilhamento
+  por Bonjour — isso é coisa de macOS, Samba e NAS. Digite o nome ou o IP. Se o nome do PC
+  não resolver, use o IP (`ipconfig` no Windows mostra).
+- **Conta Microsoft**: o usuário costuma ser o e-mail completo da conta. Em algumas máquinas
+  é preciso escrever `MicrosoftAccount\seu@email.com`.
+- **Conta local**: se o usuário sozinho não funcionar, tente `NOME-DO-PC\usuario`.
+- **Conta sem senha não conecta.** O Windows recusa acesso remoto de conta sem senha, e não
+  é algo que o app possa contornar.
+- Na rede do Windows, o perfil precisa estar como **Rede privada**; em *Rede pública* o
+  compartilhamento fica bloqueado pelo firewall.
+
 ## Privacidade
 
 O MacMount não coleta nada. Sem contas, login, analytics, anúncios ou telemetria.
