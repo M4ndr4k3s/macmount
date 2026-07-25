@@ -109,7 +109,21 @@ jobs:
             guest only = yes
           EOF
 
-          SMBD="$(brew --prefix samba)/sbin/smbd"
+          # O Homebrew instala o smbd como "samba-dot-org-smbd" para não colidir
+          # com o smbd do próprio macOS. O nome já mudou entre versões da
+          # fórmula, então procuramos em vez de fixar o caminho.
+          PREFIX="$(brew --prefix samba)"
+          ls -l "$PREFIX/sbin" || true
+          SMBD=""
+          for candidate in "$PREFIX/sbin/samba-dot-org-smbd" "$PREFIX/sbin/smbd"; do
+            [ -x "$candidate" ] && SMBD="$candidate" && break
+          done
+          if [ -z "$SMBD" ]; then
+            SMBD="$(find "$PREFIX" -type f -perm -u+x -name '*smbd' | head -1)"
+          fi
+          [ -n "$SMBD" ] || { echo "smbd não encontrado em $PREFIX" >&2; exit 1; }
+          echo "usando $SMBD"
+
           "$SMBD" --configfile="$ROOT/smb.conf" -D
           sleep 3
           nc -z localhost 4450 && echo "smbd escutando na 4450"
