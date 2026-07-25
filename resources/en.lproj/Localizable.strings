@@ -127,3 +127,5 @@
 "notify.oneMounted"  = "1 share mounted.";
 "notify.allMountedFmt" = "%lu shares mounted.";
 "notify.partialFmt"  = "%lu of %lu shares mounted.";
+"edit.needUserForPassword" = "Saving the password requires a user name. Without one, the system will ask for the password on every mount.";
+"edit.passwordNotSaved" = "The share was saved, but the password was not";

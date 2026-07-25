@@ -8,6 +8,7 @@
 //
 
 #import <Foundation/Foundation.h>
+#import "MMShare.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -23,6 +24,11 @@ extern NSString *const MMMountAtLoginArgument;
 
 /// Regrava o plist se o app tiver mudado de lugar (ex.: movido para /Applications).
 + (void)refreshIfInstalled;
+
+/// Instala o LaunchAgent se algum compartilhamento pede montagem no login, e o
+/// remove se nenhum pede. Precisa ser chamado sempre que a lista muda — sem
+/// isso a caixa "montar ao iniciar" fica marcada no arquivo e não faz nada.
++ (void)syncWithShares:(NSArray<MMShare *> *)shares;
 
 @end
 

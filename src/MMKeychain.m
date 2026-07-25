@@ -55,7 +55,22 @@ static CFStringRef MMKeychainProtocol(MMProtocol proto) {
 
     CFTypeRef result = NULL;
     OSStatus status = SecItemCopyMatching((__bridge CFDictionaryRef)q, &result);
-    if (status != errSecSuccess || result == NULL) return nil;
+
+    if (status != errSecSuccess || result == NULL) {
+        // "Não existe" é rotina e não merece log. Qualquer outra recusa vira
+        // registro: sem isso, uma senha guardada e inacessível é indistinguível
+        // de uma senha que nunca foi guardada, que foi exatamente a confusão
+        // que este arquivo já causou uma vez.
+        if (status != errSecItemNotFound) {
+            NSLog(@"[MacMount] Keychain recusou ler a senha de %@: OSStatus %d%@",
+                  share.displayName, (int)status,
+                  status == errSecAuthFailed
+                      ? @" — autorização negada; reautorize em Acesso às Chaves"
+                      : @"");
+        }
+        if (result != NULL) CFRelease(result);
+        return nil;
+    }
 
     NSData *data = CFBridgingRelease(result);
     return [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
@@ -84,19 +99,24 @@ static CFStringRef MMKeychainProtocol(MMProtocol proto) {
     NSData *data = [password dataUsingEncoding:NSUTF8StringEncoding];
     NSMutableDictionary *q = [self queryForShare:share];
 
-    OSStatus status = SecItemCopyMatching((__bridge CFDictionaryRef)q, NULL);
-    if (status == errSecSuccess) {
+    // Tenta adicionar e, se já existir, atualiza. A versão anterior sondava a
+    // existência com SecItemCopyMatching sem pedir nenhum kSecReturn*, e uma
+    // consulta assim pode responder algo que não é nem "achei" nem "não achei"
+    // — quando isso acontecia, nenhum dos dois ramos rodava e a senha nunca era
+    // gravada, em silêncio. Este padrão não tem esse meio-termo.
+    NSMutableDictionary *add = [q mutableCopy];
+    add[(__bridge id)kSecValueData] = data;
+    add[(__bridge id)kSecAttrLabel] = [NSString stringWithFormat:@"%@ (MacMount)", share.host];
+
+    OSStatus status = SecItemAdd((__bridge CFDictionaryRef)add, NULL);
+    if (status == errSecDuplicateItem) {
         status = SecItemUpdate((__bridge CFDictionaryRef)q,
                                (__bridge CFDictionaryRef)@{ (__bridge id)kSecValueData: data });
-    } else if (status == errSecItemNotFound) {
-        NSMutableDictionary *add = [q mutableCopy];
-        add[(__bridge id)kSecValueData] = data;
-        add[(__bridge id)kSecAttrLabel] =
-            [NSString stringWithFormat:@"%@ (MacMount)", share.host];
-        status = SecItemAdd((__bridge CFDictionaryRef)add, NULL);
     }
 
     if (status != errSecSuccess) {
+        NSLog(@"[MacMount] Keychain recusou gravar a senha de %@: OSStatus %d",
+              share.displayName, (int)status);
         if (error) *error = [self errorForStatus:status];
         return NO;
     }

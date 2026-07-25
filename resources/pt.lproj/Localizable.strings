@@ -129,3 +129,5 @@
 "notify.oneMounted"  = "1 compartilhamento montado.";
 "notify.allMountedFmt" = "%lu compartilhamentos montados.";
 "notify.partialFmt"  = "%lu de %lu compartilhamentos montados.";
+"edit.needUserForPassword" = "Para guardar a senha é preciso informar o usuário. Sem isso, o sistema vai pedir a senha a cada montagem.";
+"edit.passwordNotSaved" = "O compartilhamento foi salvo, mas a senha não";

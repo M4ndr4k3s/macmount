@@ -308,12 +308,18 @@
     }
 
     NSString *password = self.passwordField.stringValue;
-    if (candidate.savePassword && [MMKeychain canStorePasswordForShare:candidate]) {
-        NSError *keychainError = nil;
-        if (![MMKeychain setPassword:password forShare:candidate error:&keychainError]
-            && password.length > 0) {
-            NSLog(@"[MacMount] não foi possível guardar a senha: %@",
-                  keychainError.localizedDescription);
+    NSError *keychainError = nil;
+    NSString *keychainProblem = nil;
+
+    if (candidate.savePassword && password.length > 0) {
+        if (![MMKeychain canStorePasswordForShare:candidate]) {
+            // O caso comum: pediu para guardar a senha mas não preencheu o
+            // usuário, e sem conta não há item de Keychain para gravar.
+            keychainProblem = NSLocalizedString(@"edit.needUserForPassword",
+                @"Para guardar a senha é preciso informar o usuário. "
+                 "Sem isso, o sistema vai pedir a senha a cada montagem.");
+        } else if (![MMKeychain setPassword:password forShare:candidate error:&keychainError]) {
+            keychainProblem = keychainError.localizedDescription;
         }
     } else if (!candidate.savePassword) {
         [MMKeychain removePasswordForShare:candidate];
@@ -323,6 +329,20 @@
         [[MMStore shared] addShare:candidate];
     } else {
         [[MMStore shared] updateShare:candidate];
+    }
+
+    // O compartilhamento foi salvo de qualquer jeito; só a senha ficou de fora.
+    // Avisar é obrigatório: senha silenciosamente não guardada vira "montar ao
+    // iniciar não funciona" e "reconectar não funciona" semanas depois, sem
+    // nenhuma pista ligando um ao outro.
+    if (keychainProblem != nil) {
+        NSAlert *alert = [[NSAlert alloc] init];
+        alert.alertStyle = NSAlertStyleWarning;
+        alert.messageText = NSLocalizedString(@"edit.passwordNotSaved",
+                                              @"O compartilhamento foi salvo, mas a senha não");
+        alert.informativeText = keychainProblem;
+        [alert addButtonWithTitle:NSLocalizedString(@"alert.ok", @"OK")];
+        [alert runModal];
     }
 
     [self dismissWithResult:candidate];

@@ -65,6 +65,26 @@ Detalhes que costumam travar a primeira conexão:
 - Na rede do Windows, o perfil precisa estar como **Rede privada**; em *Rede pública* o
   compartilhamento fica bloqueado pelo firewall.
 
+## Senha guardada, e o app pede de novo
+
+Sintoma: você marca *Guardar a senha no Keychain*, funciona, e depois de **atualizar o
+MacMount** ele volta a pedir a senha — ou "montar ao iniciar" e "reconectar" param de agir,
+que é o mesmo problema visto de outro ângulo, já que ambos desistem sem credencial pronta.
+
+A causa é a falta de notarização. O app é assinado apenas de forma *ad-hoc*, e essa
+assinatura muda a cada build. O macOS amarra a permissão de ler um item do Keychain à
+identidade de quem gravou, então para o sistema a versão nova é **outro aplicativo**.
+
+O que fazer quando aparecer o diálogo *"MacMount quer usar informações confidenciais
+armazenadas em … no seu chaveiro"*: clique em **Sempre Permitir**, não em *Permitir*. Com
+*Permitir* a autorização vale só para aquela vez e o pedido volta na montagem seguinte.
+
+Se você clicou em *Negar* por engano, abra o **Acesso às Chaves**, procure pelo nome do
+servidor, apague o item e salve a senha de novo pelo MacMount.
+
+Isso só se resolve de vez com notarização (conta paga de desenvolvedor Apple), que está no
+`docs/ROADMAP.md` como fase 3.
+
 ## Privacidade
 
 O MacMount não coleta nada. Sem contas, login, analytics, anúncios ou telemetria.

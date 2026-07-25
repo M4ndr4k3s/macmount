@@ -96,6 +96,28 @@ static NSString *const MMLoginItemErrorDomain = @"com.mdksoftware.macmount.login
     [self setEnabled:YES error:NULL];
 }
 
++ (void)syncWithShares:(NSArray<MMShare *> *)shares {
+    BOOL wanted = NO;
+    for (MMShare *share in shares) {
+        if (share.mountAtLogin) { wanted = YES; break; }
+    }
+
+    if (wanted == [self isEnabled]) {
+        // Já está no estado certo; só confere se o caminho do app mudou.
+        if (wanted) [self refreshIfInstalled];
+        return;
+    }
+
+    NSError *error = nil;
+    if ([self setEnabled:wanted error:&error]) {
+        NSLog(@"[MacMount] montagem no login %@", wanted ? @"ativada" : @"desativada");
+    } else {
+        NSLog(@"[MacMount] não foi possível %@ a montagem no login: %@",
+              wanted ? @"ativar" : @"desativar",
+              error.localizedDescription ?: @"motivo desconhecido");
+    }
+}
+
 #pragma mark - launchctl
 
 + (NSString *)guiDomain {

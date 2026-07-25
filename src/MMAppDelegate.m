@@ -51,6 +51,14 @@ static NSTimeInterval const MMLoginModeTimeout = 120.0;
                                                object:nil];
     [self applyDockIconPreference];
 
+    // Sem isto a caixa "montar ao iniciar a sessão" grava a marca e não produz
+    // efeito nenhum: é o LaunchAgent que faz o login abrir o app.
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(syncLoginItem)
+                                                 name:MMStoreDidChangeNotification
+                                               object:nil];
+    [self syncLoginItem];
+
     [[MMMainWindow shared] showAndActivate];
 }
 
@@ -70,6 +78,10 @@ static NSTimeInterval const MMLoginModeTimeout = 120.0;
     if (wanted == NSApplicationActivationPolicyRegular) {
         [NSApp activateIgnoringOtherApps:YES];
     }
+}
+
+- (void)syncLoginItem {
+    [MMLoginItem syncWithShares:[MMStore shared].shares];
 }
 
 - (BOOL)applicationShouldHandleReopen:(NSApplication *)sender hasVisibleWindows:(BOOL)flag {
