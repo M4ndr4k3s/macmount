@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>MacMount</string>
+	<key>CFBundleDisplayName</key>
+	<string>MacMount</string>
+	<key>CFBundleExecutable</key>
+	<string>MacMount</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.mdksoftware.macmount</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleShortVersionString</key>
+	<string>__VERSION__</string>
+	<key>CFBundleVersion</key>
+	<string>__VERSION__</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+
+	<key>CFBundleDevelopmentRegion</key>
+	<string>pt</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>pt</string>
+		<string>en</string>
+	</array>
+
+	<!-- Piso do app. Xcode 16 ainda aceita este deployment target; a fatia
+	     x86_64 é compilada com -mmacosx-version-min=10.13. -->
+	<key>LSMinimumSystemVersion</key>
+	<string>10.13</string>
+
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
+
+	<!-- Exigido a partir do macOS 15 para a busca Bonjour de servidores SMB/AFP. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>O MacMount procura servidores de arquivos na sua rede local para sugerir nomes ao adicionar um compartilhamento.</string>
+
+	<key>NSHumanReadableCopyright</key>
+	<string>Mdk Software · MIT</string>
+</dict>
+</plist>

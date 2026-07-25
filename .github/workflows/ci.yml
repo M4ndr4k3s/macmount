@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build universal e verificações
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Xcode fixado de propósito: o 16.4 é a versão em que o deployment target
+      # macOS 10.13 está confirmado. O macos-latest vira macOS 26 em junho de
+      # 2026, e o suporte a 10.13 no Xcode 26 não está documentado. Se este
+      # passo falhar por indisponibilidade da versão, reveja o piso antes de
+      # simplesmente trocar o número — scripts/check-bundle.sh é a rede de
+      # segurança que detecta a perda do 10.13, mas o aviso vem daqui.
+      - name: Fixar Xcode 16.4
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.4'
+
+      - name: Ferramentas em uso
+        run: |
+          xcodebuild -version
+          echo "SDK: $(xcrun --sdk macosx --show-sdk-version)"
+          clang --version | head -1
+
+      # Chave de tradução faltando não quebra a compilação — apareceria crua na
+      # interface, que ninguém abre no CI. Por isso a checagem vem antes.
+      - name: Localização completa
+        run: make strings
+
+      - name: Testes de lógica
+        run: make test
+
+      - name: Build universal
+        run: make
+
+      - name: Verificações do bundle (piso 10.13, arquiteturas, assinatura)
+        run: scripts/check-bundle.sh build
+
+      - name: Smoke test da interface
+        run: make smoke
+
+      - name: Publicar o app para inspeção
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: MacMount-app
+          path: build/MacMount.app
+          if-no-files-found: warn
+
+  mount:
+    name: Montagem real contra Samba local (informativo)
+    runs-on: macos-15
+    # Depende de o runner deixar levantar um smbd e de o NetFS aceitar o
+    # loopback. Quando funciona, é a única prova de que o caminho de montagem
+    # inteiro roda de ponta a ponta; quando não, não deve barrar o PR.
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.4'
+
+      - name: Levantar um Samba na porta 4450
+        run: |
+          set -x
+          brew install --quiet samba
+
+          ROOT="$RUNNER_TEMP/samba"
+          SHARE="$ROOT/share"
+          mkdir -p "$SHARE" "$ROOT/state" "$ROOT/private" "$ROOT/lock" "$ROOT/cache" "$ROOT/run"
+          echo "ola do samba" > "$SHARE/ola.txt"
+
+          cat > "$ROOT/smb.conf" <<EOF
+          [global]
+            workgroup = WORKGROUP
+            security = user
+            server min protocol = SMB2
+            smb ports = 4450
+            private dir = $ROOT/private
+            state directory = $ROOT/state
+            cache directory = $ROOT/cache
+            lock directory = $ROOT/lock
+            pid directory = $ROOT/run
+            log file = $ROOT/smbd.log
+            log level = 1
+
+          [teste]
+            path = $SHARE
+            read only = no
+            browseable = yes
+          EOF
+
+          SMBD="$(brew --prefix samba)/sbin/smbd"
+          SMBPASSWD="$(brew --prefix samba)/bin/smbpasswd"
+
+          # A conta precisa existir no sistema; no runner é o próprio usuário.
+          printf 'MacMount123!\nMacMount123!\n' \
+            | "$SMBPASSWD" -c "$ROOT/smb.conf" -s -a "$USER"
+
+          "$SMBD" -s "$ROOT/smb.conf" -D
+          sleep 3
+          nc -z localhost 4450 && echo "smbd escutando na 4450"
+
+      - name: Montar, conferir e desmontar
+        run: |
+          make mount-smoke ARGS="smb://localhost:4450/teste $USER MacMount123! ola.txt"
+
+      - name: Log do Samba se algo falhar
+        if: failure()
+        run: cat "$RUNNER_TEMP/samba/smbd.log" || true

@@ -1,0 +1,120 @@
+/* MacMount — English (en-US). */
+
+"app.name" = "MacMount";
+
+/* Protocols */
+"proto.smb"     = "SMB (Windows)";
+"proto.afp"     = "AFP (Mac)";
+"proto.nfs"     = "NFS (Unix)";
+"proto.webdav"  = "WebDAV";
+"proto.webdavs" = "WebDAV (HTTPS)";
+
+/* Model */
+"share.untitled"   = "New share";
+"share.incomplete" = "Incomplete entry";
+"share.guest"      = "guest";
+
+/* Validation */
+"validate.noHost"   = "Enter the server.";
+"validate.badHost"  = "The server cannot contain slashes.";
+"validate.badPort"  = "Invalid port.";
+"validate.noExport" = "Enter the exported path.";
+"validate.badURL"   = "Could not build a valid address.";
+
+/* Mount results */
+"mount.ok"            = "Mounted.";
+"mount.canceled"      = "Operation canceled.";
+"mount.auth"          = "Incorrect user name or password.";
+"mount.noShare"       = "Share not found on the server.";
+"mount.timeout"       = "The server did not respond in time.";
+"mount.refused"       = "Connection refused by the server.";
+"mount.dropped"       = "The connection to the server was lost.";
+"mount.hostDown"      = "Server unreachable. Check the name and your network.";
+"mount.netDown"       = "No network.";
+"mount.exists"        = "This share is already mounted.";
+"mount.busy"          = "The volume is in use. Close open files and try again.";
+"mount.invalid"       = "Invalid share address.";
+"mount.pwdChange"     = "The password must be changed on the server.";
+"mount.pwdPolicy"     = "The password does not meet the server's policy.";
+"mount.restricted"    = "Account restricted or disabled on the server.";
+"mount.noShares"      = "The server offers no shares for this account.";
+"mount.noAuthMech"    = "The server uses an unsupported authentication method.";
+"mount.noProtoVers"   = "Protocol version not supported by the server.";
+"mount.noGuest"       = "This server does not allow guest access.";
+"mount.netauthFailed" = "The system could not complete the mount.";
+"mount.errnoFmt"      = "Mount failed: %s (%d)";
+"mount.unknownFmt"    = "Mount failed (code %d).";
+
+/* Keychain */
+"keychain.cannotStore" = "Cannot store a password for this entry.";
+"keychain.errorFmt"    = "Keychain error (%d).";
+
+/* Login item */
+"login.noExecutable" = "Could not locate the application.";
+
+/* Alerts */
+"alert.ok"                = "OK";
+"alert.cancel"            = "Cancel";
+"alert.force"             = "Force";
+"alert.cannotMount"       = "Could not mount";
+"alert.mountFailedFmt"    = "Failed to mount “%@”";
+"alert.unmountFailed"     = "Unmount failed";
+"alert.unmountFailedFmt"  = "Could not unmount “%@”";
+"alert.forceHint"         = "Forcing may discard writes that have not finished.";
+
+/* Edit sheet */
+"edit.name"            = "Name:";
+"edit.protocol"        = "Protocol:";
+"edit.host"            = "Server:";
+"edit.share"           = "Share:";
+"edit.user"            = "User name:";
+"edit.password"        = "Password:";
+"edit.namePlaceholder" = "Optional";
+"edit.hostPlaceholder" = "server.local, 192.168.0.10 or \\\\SERVER\\Public";
+"edit.sharePlaceholder" = "Public";
+"edit.userPlaceholder" = "Leave empty to be asked";
+"edit.guest"           = "Connect as guest";
+"edit.savePassword"    = "Save the password in the Keychain";
+"edit.readOnly"        = "Mount read-only";
+"edit.hide"            = "Do not show on the desktop";
+"edit.mountAtLogin"    = "Mount at login";
+"edit.save"            = "Save";
+"edit.invalid"         = "Incomplete entry";
+
+/* Main window */
+"column.share"      = "Share";
+"column.state"      = "State";
+"empty.hint"        = "No shares yet.\nClick + to add your first one.";
+"bar.add"           = "Add share";
+"bar.remove"        = "Remove";
+"bar.edit"          = "Edit";
+"bar.mountAll"      = "Mount all";
+"remove.confirmFmt" = "Remove “%@”?";
+"remove.confirm"    = "Remove";
+"remove.hint"       = "The share leaves this list. Nothing is deleted on the server.";
+
+/* States */
+"state.mounted"     = "Mounted";
+"state.mounting"    = "Mounting…";
+"state.unmounting"  = "Unmounting…";
+"state.unmounted"   = "Not mounted";
+"action.mount"      = "Mount";
+"action.unmount"    = "Unmount";
+
+/* Menus */
+"menu.empty"      = "No shares";
+"menu.revealFmt"  = "Open “%@” in Finder";
+"menu.add"        = "Add Share…";
+"menu.open"       = "Open MacMount";
+"menu.quit"       = "Quit MacMount";
+"menu.aboutFmt"   = "About %@";
+"menu.hideFmt"    = "Hide %@";
+"menu.quitFmt"    = "Quit %@";
+"menu.edit"       = "Edit";
+"menu.cut"        = "Cut";
+"menu.copy"       = "Copy";
+"menu.paste"      = "Paste";
+"menu.selectAll"  = "Select All";
+"menu.window"     = "Window";
+"menu.minimize"   = "Minimize";
+"menu.close"      = "Close";

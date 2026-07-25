@@ -1,0 +1,122 @@
+/* MacMount — português (pt-BR). Idioma padrão do app.
+   scripts/check-strings.py garante que este arquivo cobre todas as chaves
+   usadas em src/ — chave faltando apareceria crua na interface. */
+
+"app.name" = "MacMount";
+
+/* Protocolos */
+"proto.smb"     = "SMB (Windows)";
+"proto.afp"     = "AFP (Mac)";
+"proto.nfs"     = "NFS (Unix)";
+"proto.webdav"  = "WebDAV";
+"proto.webdavs" = "WebDAV (HTTPS)";
+
+/* Modelo */
+"share.untitled"   = "Novo compartilhamento";
+"share.incomplete" = "Entrada incompleta";
+"share.guest"      = "convidado";
+
+/* Validação */
+"validate.noHost"   = "Informe o servidor.";
+"validate.badHost"  = "O servidor não pode conter barras.";
+"validate.badPort"  = "Porta inválida.";
+"validate.noExport" = "Informe o caminho exportado.";
+"validate.badURL"   = "Não foi possível montar um endereço válido.";
+
+/* Resultado da montagem */
+"mount.ok"            = "Montado.";
+"mount.canceled"      = "Operação cancelada.";
+"mount.auth"          = "Usuário ou senha incorretos.";
+"mount.noShare"       = "Compartilhamento não encontrado no servidor.";
+"mount.timeout"       = "O servidor não respondeu a tempo.";
+"mount.refused"       = "Conexão recusada pelo servidor.";
+"mount.dropped"       = "A conexão com o servidor caiu.";
+"mount.hostDown"      = "Servidor inacessível. Confira o nome e a rede.";
+"mount.netDown"       = "Sem rede.";
+"mount.exists"        = "Este compartilhamento já está montado.";
+"mount.busy"          = "O volume está em uso. Feche os arquivos abertos e tente de novo.";
+"mount.invalid"       = "Endereço de compartilhamento inválido.";
+"mount.pwdChange"     = "A senha precisa ser trocada no servidor.";
+"mount.pwdPolicy"     = "A senha não atende à política do servidor.";
+"mount.restricted"    = "Conta restrita ou desativada no servidor.";
+"mount.noShares"      = "O servidor não oferece compartilhamentos para esta conta.";
+"mount.noAuthMech"    = "O servidor usa um método de autenticação não suportado.";
+"mount.noProtoVers"   = "Versão de protocolo não suportada pelo servidor.";
+"mount.noGuest"       = "Este servidor não aceita acesso como convidado.";
+"mount.netauthFailed" = "O sistema não conseguiu concluir a montagem.";
+"mount.errnoFmt"      = "Falha ao montar: %s (%d)";
+"mount.unknownFmt"    = "Falha ao montar (código %d).";
+
+/* Keychain */
+"keychain.cannotStore" = "Não é possível guardar senha para esta entrada.";
+"keychain.errorFmt"    = "Erro do Keychain (%d).";
+
+/* Item de login */
+"login.noExecutable" = "Não foi possível localizar o aplicativo.";
+
+/* Alertas */
+"alert.ok"                = "OK";
+"alert.cancel"            = "Cancelar";
+"alert.force"             = "Forçar";
+"alert.cannotMount"       = "Não foi possível montar";
+"alert.mountFailedFmt"    = "Falha ao montar “%@”";
+"alert.unmountFailed"     = "Falha ao desmontar";
+"alert.unmountFailedFmt"  = "Não foi possível desmontar “%@”";
+"alert.forceHint"         = "Forçar pode descartar gravações ainda não concluídas.";
+
+/* Folha de edição */
+"edit.name"            = "Nome:";
+"edit.protocol"        = "Protocolo:";
+"edit.host"            = "Servidor:";
+"edit.share"           = "Compartilhamento:";
+"edit.user"            = "Usuário:";
+"edit.password"        = "Senha:";
+"edit.namePlaceholder" = "Opcional";
+"edit.hostPlaceholder" = "servidor.local, 192.168.0.10 ou \\\\SERVIDOR\\Publico";
+"edit.sharePlaceholder" = "Publico";
+"edit.userPlaceholder" = "Deixe vazio para perguntar";
+"edit.guest"           = "Conectar como convidado";
+"edit.savePassword"    = "Guardar a senha no Keychain";
+"edit.readOnly"        = "Montar somente leitura";
+"edit.hide"            = "Não mostrar na mesa";
+"edit.mountAtLogin"    = "Montar ao iniciar a sessão";
+"edit.save"            = "Salvar";
+"edit.invalid"         = "Entrada incompleta";
+
+/* Janela principal */
+"column.share"      = "Compartilhamento";
+"column.state"      = "Estado";
+"empty.hint"        = "Nenhum compartilhamento ainda.\nClique em + para adicionar o primeiro.";
+"bar.add"           = "Adicionar compartilhamento";
+"bar.remove"        = "Remover";
+"bar.edit"          = "Editar";
+"bar.mountAll"      = "Montar todos";
+"remove.confirmFmt" = "Remover “%@”?";
+"remove.confirm"    = "Remover";
+"remove.hint"       = "O compartilhamento sai da lista. Nada é apagado no servidor.";
+
+/* Estados */
+"state.mounted"     = "Montado";
+"state.mounting"    = "Montando…";
+"state.unmounting"  = "Desmontando…";
+"state.unmounted"   = "Desmontado";
+"action.mount"      = "Montar";
+"action.unmount"    = "Desmontar";
+
+/* Menus */
+"menu.empty"      = "Nenhum compartilhamento";
+"menu.revealFmt"  = "Abrir “%@” no Finder";
+"menu.add"        = "Adicionar compartilhamento…";
+"menu.open"       = "Abrir MacMount";
+"menu.quit"       = "Sair do MacMount";
+"menu.aboutFmt"   = "Sobre o %@";
+"menu.hideFmt"    = "Ocultar %@";
+"menu.quitFmt"    = "Sair do %@";
+"menu.edit"       = "Editar";
+"menu.cut"        = "Recortar";
+"menu.copy"       = "Copiar";
+"menu.paste"      = "Colar";
+"menu.selectAll"  = "Selecionar tudo";
+"menu.window"     = "Janela";
+"menu.minimize"   = "Minimizar";
+"menu.close"      = "Fechar";

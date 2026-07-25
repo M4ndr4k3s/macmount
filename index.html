@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MacMount — Política de Privacidade / Privacy Policy</title>
+<style>
+  :root { --teal:#00C4A0; --tealDark:#007A68; --bg:#0f1115; --card:#171a21; --text:#e6e8ec; --muted:#9aa3af; --border:#262b34; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.65 -apple-system,Segoe UI,Roboto,Arial,sans-serif; }
+  .wrap { max-width:820px; margin:0 auto; padding:40px 22px 80px; }
+  header { display:flex; align-items:center; gap:14px; margin-bottom:8px; }
+  .logo { width:46px; height:46px; }
+  h1 { font-size:24px; margin:0; }
+  h2 { font-size:20px; margin:38px 0 10px; color:var(--teal); }
+  h3 { font-size:16px; margin:22px 0 6px; }
+  .sub { color:var(--muted); margin:2px 0 0; font-size:14px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:8px 22px 22px; margin-top:18px; }
+  a { color:var(--teal); }
+  ul { padding-left:20px; }
+  li { margin:6px 0; }
+  .tag { display:inline-block; background:rgba(0,196,160,.12); color:var(--teal); border:1px solid rgba(0,196,160,.3); border-radius:20px; padding:3px 12px; font-size:13px; }
+  .divider { height:1px; background:var(--border); margin:46px 0; }
+  footer { color:var(--muted); font-size:13px; margin-top:40px; text-align:center; }
+  code { background:#0b0d11; border:1px solid var(--border); border-radius:6px; padding:1px 6px; font-size:13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <svg class="logo" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#00C4A0"/><stop offset="1" stop-color="#007A68"/>
+      </linearGradient></defs>
+      <rect x="0" y="0" width="256" height="256" rx="57" fill="url(#g)"/>
+      <g stroke="#fff" stroke-width="14" stroke-linecap="round">
+        <line x1="128" y1="81" x2="73" y2="175"/>
+        <line x1="128" y1="81" x2="183" y2="175"/>
+        <line x1="73" y1="175" x2="183" y2="175"/>
+      </g>
+      <circle cx="128" cy="81" r="22" fill="#fff"/>
+      <circle cx="73" cy="175" r="22" fill="#fff"/>
+      <circle cx="183" cy="175" r="22" fill="#fff"/>
+    </svg>
+    <div>
+      <h1>MacMount — Política de Privacidade</h1>
+      <p class="sub">Privacy Policy · Mdk Software</p>
+    </div>
+  </header>
+
+  <p><span class="tag">Última atualização / Last updated: 25/07/2026</span></p>
+
+  <!-- ───────────────────────── PORTUGUÊS ───────────────────────── -->
+  <div class="card">
+    <h2>Português</h2>
+
+    <p>O <strong>MacMount</strong> é um aplicativo para macOS que monta compartilhamentos de rede (SMB/Windows, AFP, NFS e WebDAV), desenvolvido pela <strong>Mdk Software</strong>. Ele foi desenhado para funcionar de forma <strong>local</strong>, sem qualquer serviço nosso no meio do caminho.</p>
+
+    <h3>1. Quais dados coletamos</h3>
+    <p><strong>Nenhum.</strong> O MacMount não coleta, transmite nem armazena dados pessoais em servidores. Não há contas de usuário, login, rastreamento, analytics, anúncios ou perfis de uso. Não existe sequer verificação automática de atualizações.</p>
+
+    <h3>2. Onde seus dados ficam</h3>
+    <ul>
+      <li>A lista de compartilhamentos fica em <code>~/Library/Application Support/MacMount/shares.json</code>, no seu Mac, com permissão de leitura restrita ao seu usuário.</li>
+      <li>As senhas ficam no <strong>Keychain do macOS</strong>, gerenciado pelo sistema, no mesmo formato usado pelo "Conectar ao servidor" do Finder. O MacMount nunca grava senha em arquivo próprio.</li>
+      <li>A opção "montar ao iniciar a sessão" cria um arquivo em <code>~/Library/LaunchAgents/</code>, também local.</li>
+    </ul>
+    <p>Nada disso sai do seu computador por iniciativa do aplicativo.</p>
+
+    <h3>3. Conexões de rede</h3>
+    <p>O MacMount faz exatamente dois tipos de conexão, e nenhuma delas é com a Mdk Software:</p>
+    <ul>
+      <li><strong>Os servidores de arquivos que você cadastrou</strong>, quando você manda montar um compartilhamento. O endereço, o usuário e a senha vão para o servidor que <em>você</em> escolheu, usando as APIs do próprio macOS.</li>
+      <li><strong>Bonjour na rede local</strong>, para listar servidores de arquivos visíveis e sugerir o nome quando você cadastra um compartilhamento. É tráfego multicast que não sai da sua rede local, e não envia identificação sua.</li>
+    </ul>
+
+    <h3>4. Terceiros</h3>
+    <p>O aplicativo não usa bibliotecas de terceiros, SDKs de publicidade nem serviços de análise. Depende apenas de frameworks do próprio macOS.</p>
+
+    <h3>5. Crianças</h3>
+    <p>O aplicativo não é direcionado a crianças e não coleta dados de ninguém, independentemente da idade.</p>
+
+    <h3>6. Alterações nesta política</h3>
+    <p>Qualquer recurso futuro que envolva conexão de rede além das descritas acima será refletido nesta política <strong>antes</strong> de ser publicado.</p>
+
+    <h3>7. Contato</h3>
+    <p>Dúvidas: abra uma issue em <a href="https://github.com/M4ndr4k3s/macmount/issues">github.com/M4ndr4k3s/macmount</a>.</p>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ───────────────────────── ENGLISH ───────────────────────── -->
+  <div class="card">
+    <h2>English</h2>
+
+    <p><strong>MacMount</strong> is a macOS application that mounts network shares (SMB/Windows, AFP, NFS and WebDAV), developed by <strong>Mdk Software</strong>. It is designed to run <strong>locally</strong>, with no service of ours in between.</p>
+
+    <h3>1. What data we collect</h3>
+    <p><strong>None.</strong> MacMount does not collect, transmit or store personal data on any server. There are no user accounts, logins, tracking, analytics, ads or usage profiles. There is not even an automatic update check.</p>
+
+    <h3>2. Where your data lives</h3>
+    <ul>
+      <li>Your list of shares is stored at <code>~/Library/Application Support/MacMount/shares.json</code> on your Mac, readable only by your user account.</li>
+      <li>Passwords are stored in the <strong>macOS Keychain</strong>, managed by the system, in the same format used by Finder's "Connect to Server". MacMount never writes a password to its own files.</li>
+      <li>The "mount at login" option creates a file in <code>~/Library/LaunchAgents/</code>, also local.</li>
+    </ul>
+    <p>None of this leaves your computer on the application's initiative.</p>
+
+    <h3>3. Network connections</h3>
+    <p>MacMount makes exactly two kinds of connection, and neither is to Mdk Software:</p>
+    <ul>
+      <li><strong>The file servers you configured</strong>, when you ask it to mount a share. The address, user name and password go to the server <em>you</em> chose, using macOS's own APIs.</li>
+      <li><strong>Bonjour on your local network</strong>, to list visible file servers and suggest a name when you add a share. This is multicast traffic that stays on your local network and carries no identification of you.</li>
+    </ul>
+
+    <h3>4. Third parties</h3>
+    <p>The application uses no third-party libraries, advertising SDKs or analytics services. It depends only on macOS system frameworks.</p>
+
+    <h3>5. Children</h3>
+    <p>The application is not directed at children and collects no data from anyone, regardless of age.</p>
+
+    <h3>6. Changes to this policy</h3>
+    <p>Any future feature involving network connections beyond those described above will be reflected in this policy <strong>before</strong> it ships.</p>
+
+    <h3>7. Contact</h3>
+    <p>Questions: open an issue at <a href="https://github.com/M4ndr4k3s/macmount/issues">github.com/M4ndr4k3s/macmount</a>.</p>
+  </div>
+
+  <footer>MacMount · Mdk Software · MIT</footer>
+
+</div>
+</body>
+</html>

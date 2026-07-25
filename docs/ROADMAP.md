@@ -1,0 +1,53 @@
+# MacMount — Plano de Desenvolvimento
+
+> Montador gráfico de compartilhamentos de rede para macOS, da **Mdk Software**.
+> Piso **macOS 10.13 High Sierra**, universal (Intel + Apple Silicon), offline.
+
+## Fase 1 — MVP (em andamento)
+
+1. Modelo `MMShare`: URL de montagem, parser de UNC/URL, validação, JSON
+2. `MMMounter`: montar e desmontar via NetFS, detecção de estado por `getfsstat`
+3. `MMKeychain`: senha como *internet password*, no mesmo formato do Finder
+4. `MMStore`: `shares.json` em Application Support, permissão 0600
+5. Janela com a lista + folha de adicionar/editar
+6. Ícone e menu na barra de menus
+7. Montar ao iniciar a sessão (LaunchAgent)
+8. Descoberta Bonjour de servidores SMB/AFP
+9. i18n pt-BR/en-US
+10. Build universal, verificações estáticas e release por tag no GitHub Actions
+
+## Fase 2 — Depois do primeiro uso real
+
+O que entra aqui depende do que quebrar no teste em máquina de verdade. Candidatos:
+
+- **Reordenar a lista** por arrastar (o `MMStore` já tem `moveShareFromIndex:toIndex:`,
+  falta ligar na tabela)
+- **Perfis por rede**: montar só quando estiver em determinado Wi-Fi ou faixa de IP
+- **Reconectar sozinho** quando a rede volta, para compartilhamento marcado como persistente
+- **Importar** os servidores que já estão nos favoritos do Finder
+- **Notificação** ao concluir montagem no login, em vez de silêncio total
+- **Submontagem melhor**: hoje `Publico/Docs` só casa por igualdade exata do caminho; casar
+  com o share pai já montado e abrir a subpasta seria mais amigável
+
+## Fase 3 — Distribuição
+
+- **Notarização** (exige conta paga de desenvolvedor Apple, US$ 99/ano). Resolveria o
+  atrito de "clique direito › Abrir" na primeira execução.
+- **Verificação de atualizações** — só se for opcional, acionada pelo usuário e sem enviar
+  identificador nenhum. Exige atualizar a política de privacidade antes.
+- Homebrew cask
+
+## Limites conhecidos
+
+- **Nenhum Mac de desenvolvimento.** Build e verificação acontecem só no CI; o teste em
+  High Sierra real e contra servidor Windows real depende de quem tem a máquina.
+- **Sem notarização**, primeira abertura exige o caminho manual (documentado no README).
+- **NFS não usa Keychain** — o protocolo não autentica por senha.
+- **Xcode 16.4 fixado.** Quando o runner deixar de oferecer essa versão, será preciso
+  reverificar se o Xcode novo ainda aceita deployment target 10.13 antes de subir o pino.
+  `scripts/check-bundle.sh` detecta a perda, mas a decisão é humana.
+
+## Convenções de trabalho
+
+Iguais ao PassForge: issue com label (`feature`, `bug`, `qa`, `release`) → branch
+`claude/<slug>` → PR pequeno → merge na `main`. Roadmap revisado a cada release.
