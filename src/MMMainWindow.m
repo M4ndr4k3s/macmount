@@ -70,6 +70,33 @@ static NSString *const MMColumnAction = @"action";
 - (void)buildContent {
     NSView *content = self.window.contentView;
 
+    NSScrollView *scroll = [self buildTable];
+    NSTextField *empty = [self buildEmptyLabel];
+    NSStackView *bar = [self buildToolbar];
+
+    [content addSubview:scroll];
+    [content addSubview:empty];
+    [content addSubview:bar];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [scroll.topAnchor constraintEqualToAnchor:content.topAnchor],
+        [scroll.leadingAnchor constraintEqualToAnchor:content.leadingAnchor],
+        [scroll.trailingAnchor constraintEqualToAnchor:content.trailingAnchor],
+
+        [bar.topAnchor constraintEqualToAnchor:scroll.bottomAnchor constant:10],
+        [bar.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:14],
+        [bar.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-14],
+        [bar.bottomAnchor constraintEqualToAnchor:content.bottomAnchor constant:-12],
+
+        [empty.centerXAnchor constraintEqualToAnchor:scroll.centerXAnchor],
+        [empty.centerYAnchor constraintEqualToAnchor:scroll.centerYAnchor],
+    ]];
+
+    [self refresh];
+}
+
+/// A tabela e as três colunas, já dentro do NSScrollView que a hospeda.
+- (NSScrollView *)buildTable {
     self.tableView = [[NSTableView alloc] initWithFrame:NSZeroRect];
     self.tableView.dataSource = self;
     self.tableView.delegate = self;
@@ -108,16 +135,23 @@ static NSString *const MMColumnAction = @"action";
     scroll.autohidesScrollers = YES;
     scroll.borderType = NSNoBorder;
     scroll.translatesAutoresizingMaskIntoConstraints = NO;
-    [content addSubview:scroll];
+    return scroll;
+}
 
+/// Aparece por cima da tabela vazia, dizendo o que fazer em seguida.
+- (NSTextField *)buildEmptyLabel {
     self.emptyLabel = [NSTextField labelWithString:
         NSLocalizedString(@"empty.hint",
                           @"Nenhum compartilhamento ainda.\nClique em + para adicionar o primeiro.")];
     self.emptyLabel.alignment = NSTextAlignmentCenter;
     self.emptyLabel.textColor = [NSColor secondaryLabelColor];
     self.emptyLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    [content addSubview:self.emptyLabel];
+    return self.emptyLabel;
+}
 
+/// A barra de baixo. A NSView vazia no meio é o espaçador que empurra "montar
+/// todos" e "desmontar todos" para a direita.
+- (NSStackView *)buildToolbar {
     NSButton *addButton = [self barButtonWithTitle:@"+"
                                             action:@selector(addShare:)
                                            tooltip:NSLocalizedString(@"bar.add", @"Adicionar compartilhamento")];
@@ -143,23 +177,7 @@ static NSString *const MMColumnAction = @"action";
     bar.translatesAutoresizingMaskIntoConstraints = NO;
     [bar setHuggingPriority:NSLayoutPriorityDefaultLow
              forOrientation:NSLayoutConstraintOrientationHorizontal];
-    [content addSubview:bar];
-
-    [NSLayoutConstraint activateConstraints:@[
-        [scroll.topAnchor constraintEqualToAnchor:content.topAnchor],
-        [scroll.leadingAnchor constraintEqualToAnchor:content.leadingAnchor],
-        [scroll.trailingAnchor constraintEqualToAnchor:content.trailingAnchor],
-
-        [bar.topAnchor constraintEqualToAnchor:scroll.bottomAnchor constant:10],
-        [bar.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:14],
-        [bar.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-14],
-        [bar.bottomAnchor constraintEqualToAnchor:content.bottomAnchor constant:-12],
-
-        [self.emptyLabel.centerXAnchor constraintEqualToAnchor:scroll.centerXAnchor],
-        [self.emptyLabel.centerYAnchor constraintEqualToAnchor:scroll.centerYAnchor],
-    ]];
-
-    [self refresh];
+    return bar;
 }
 
 - (NSButton *)barButtonWithTitle:(NSString *)title action:(SEL)action tooltip:(NSString *)tooltip {
