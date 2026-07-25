@@ -46,11 +46,15 @@ jobs:
           make strings
           make test
 
-      - name: Build, verificações e empacotamento
-        run: make dist
+      # Verificar antes de empacotar: assim o dmg só é gerado a partir de um
+      # app que já passou pelas checagens e abriu sem quebrar.
+      - name: Build, verificações e smoke test
+        run: |
+          make check
+          make smoke
 
-      - name: Smoke test da interface
-        run: make smoke
+      - name: Empacotar dmg e zip
+        run: make dist
 
       - name: Publicar artefatos do workflow
         uses: actions/upload-artifact@v4

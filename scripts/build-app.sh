@@ -46,7 +46,11 @@ FRAMEWORKS=(
   -framework CoreGraphics
 )
 
-rm -rf "$BUILD"
+# Só o que este script produz. Apagar o diretório inteiro levaria junto o dmg e
+# o zip já empacotados — e qualquer alvo que dependa de `all`, como o smoke
+# test, rodaria como uma faxina silenciosa nos artefatos. Para limpar tudo
+# existe o `make clean`.
+rm -rf "$BUNDLE" "$BUILD/obj"
 mkdir -p "$BUILD/obj"
 
 compile_slice() {
