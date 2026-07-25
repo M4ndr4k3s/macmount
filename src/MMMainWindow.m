@@ -190,20 +190,20 @@ static NSString *const MMColumnAction = @"action";
 
 - (void)refresh {
     [self.tableView reloadData];
-
-    BOOL hasSelection = ([self selectedShare] != nil);
-    self.removeButton.enabled = hasSelection;
-    self.editButton.enabled = hasSelection;
+    [self updateSelectionButtons];
     self.emptyLabel.hidden = ([self shares].count > 0);
 
     MMCoordinator *coordinator = [MMCoordinator shared];
-    BOOL anyMounted = [coordinator hasMountedShares];
-    BOOL anyUnmounted = NO;
-    for (MMShare *share in [self shares]) {
-        if ([coordinator stateForShare:share] == MMMountStateUnmounted) { anyUnmounted = YES; break; }
-    }
-    self.mountAllButton.enabled = anyUnmounted;
-    self.unmountAllButton.enabled = anyMounted;
+    self.mountAllButton.enabled = [coordinator hasSharesInState:MMMountStateUnmounted];
+    self.unmountAllButton.enabled = [coordinator hasSharesInState:MMMountStateMounted];
+}
+
+/// Remover e Editar dependem só da seleção, que muda por dois caminhos: a lista
+/// recarregada e o clique do usuário. Os dois passam por aqui.
+- (void)updateSelectionButtons {
+    BOOL hasSelection = ([self selectedShare] != nil);
+    self.removeButton.enabled = hasSelection;
+    self.editButton.enabled = hasSelection;
 }
 
 #pragma mark - Ações
@@ -318,14 +318,14 @@ static NSString *const MMColumnAction = @"action";
                            insets:NSEdgeInsetsMake(5, 4, 5, 4)];
     }
     if ([column.identifier isEqualToString:MMColumnState]) {
-        NSTextField *field = [NSTextField labelWithString:[self titleForState:state]];
+        NSTextField *field = [NSTextField labelWithString:MMMountStateTitle(state)];
         field.textColor = (state == MMMountStateMounted)
             ? [NSColor labelColor] : [NSColor secondaryLabelColor];
         field.lineBreakMode = NSLineBreakByTruncatingTail;
         return [self wrapCellView:field insets:NSEdgeInsetsMake(0, 2, 0, 2)];
     }
     if ([column.identifier isEqualToString:MMColumnAction]) {
-        NSButton *button = [NSButton buttonWithTitle:[self actionTitleForState:state]
+        NSButton *button = [NSButton buttonWithTitle:MMMountStateActionTitle(state)
                                               target:self
                                               action:@selector(toggleRow:)];
         button.bezelStyle = NSBezelStyleRounded;
@@ -384,30 +384,8 @@ static NSString *const MMColumnAction = @"action";
     return stack;
 }
 
-- (NSString *)titleForState:(MMMountState)state {
-    switch (state) {
-        case MMMountStateMounted:     return NSLocalizedString(@"state.mounted", @"Montado");
-        case MMMountStateMounting:    return NSLocalizedString(@"state.mounting", @"Montando…");
-        case MMMountStateUnmounting:  return NSLocalizedString(@"state.unmounting", @"Desmontando…");
-        case MMMountStateUnmounted:
-        default:                      return NSLocalizedString(@"state.unmounted", @"Desmontado");
-    }
-}
-
-- (NSString *)actionTitleForState:(MMMountState)state {
-    switch (state) {
-        case MMMountStateMounted:     return NSLocalizedString(@"action.unmount", @"Desmontar");
-        case MMMountStateMounting:    return NSLocalizedString(@"state.mounting", @"Montando…");
-        case MMMountStateUnmounting:  return NSLocalizedString(@"state.unmounting", @"Desmontando…");
-        case MMMountStateUnmounted:
-        default:                      return NSLocalizedString(@"action.mount", @"Montar");
-    }
-}
-
 - (void)tableViewSelectionDidChange:(NSNotification *)notification {
-    BOOL hasSelection = ([self selectedShare] != nil);
-    self.removeButton.enabled = hasSelection;
-    self.editButton.enabled = hasSelection;
+    [self updateSelectionButtons];
 }
 
 @end

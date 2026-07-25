@@ -30,6 +30,25 @@ extern BOOL MMProtocolFromScheme(NSString *scheme, MMProtocol *outProto);
 /// Ordem em que os protocolos aparecem no menu suspenso.
 extern NSArray<NSNumber *> *MMAllProtocols(void);
 
+/// Separa "host", "host:445", "[::1]" e "[::1]:445" em host e porta (0 quando
+/// não houver). Dois cuidados que a forma ingênua erra: vários ":" sem colchetes
+/// são IPv6, não porta, e "servidor:" — como aparece no "servidor:/export" do
+/// NFS — é só o host. A regra é sutil e vale para todo host que o app manipula,
+/// tanto o que o usuário digita quanto o que vem de um volume já montado.
+extern void MMSplitHostPort(NSString *hostPort,
+                            NSString *_Nullable *_Nullable outHost,
+                            NSInteger *_Nullable outPort);
+
+/// Junta os pedaços não vazios de um caminho com "/", trocando a "\" do Windows
+/// por "/" e descartando espaço em volta de cada pedaço. Sem barra nas pontas.
+extern NSString *MMJoinPathComponents(NSString *_Nullable path);
+
+/// Nomes das propriedades que definem um compartilhamento, na ordem em que são
+/// declaradas. Uma lista só: a cópia percorre esta lista, e os testes a conferem
+/// contra as @property de verdade — porque o erro clássico aqui é acrescentar um
+/// campo e esquecer de copiá-lo, que não dá erro nenhum e some dentro do app.
+extern NSArray<NSString *> *MMShareFieldNames(void);
+
 @interface MMShare : NSObject <NSCopying>
 
 @property (nonatomic, copy) NSString *identifier;          // UUID, estável entre sessões

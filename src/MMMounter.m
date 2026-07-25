@@ -42,27 +42,12 @@ static NSString *MMStringFromCString(const char *s) {
 
 /// Deixa o host comparável: minúsculo, sem porta, sem sufixo de Bonjour/mDNS.
 static NSString *MMNormalizeHost(NSString *host) {
-    NSString *s = [(host ?: @"") lowercaseString];
-
-    // Tira a porta, cuidando de IPv6 entre colchetes.
-    if ([s hasPrefix:@"["]) {
-        NSRange close = [s rangeOfString:@"]"];
-        if (close.location != NSNotFound) {
-            s = [s substringWithRange:NSMakeRange(1, close.location - 1)];
-        }
-    } else {
-        NSRange colon = [s rangeOfString:@":" options:NSBackwardsSearch];
-        if (colon.location != NSNotFound) {
-            NSString *head = [s substringToIndex:colon.location];
-            NSString *tail = [s substringFromIndex:NSMaxRange(colon)];
-            NSCharacterSet *nonDigits = [[NSCharacterSet decimalDigitCharacterSet] invertedSet];
-            // Vários ":" significam IPv6 sem colchetes, não host:porta.
-            BOOL isPort = tail.length > 0
-                && [tail rangeOfCharacterFromSet:nonDigits].location == NSNotFound
-                && [head rangeOfString:@":"].location == NSNotFound;
-            if (isPort) s = head;
-        }
-    }
+    // A porta sai pela mesma função que o parser de entrada usa: a regra tem
+    // casos de canto (IPv6 sem colchetes, "servidor:") que não podem divergir
+    // entre o que o usuário cadastra e o que lemos de um volume montado — se
+    // divergirem, o app deixa de reconhecer a própria montagem.
+    NSString *s = nil;
+    MMSplitHostPort([(host ?: @"") lowercaseString], &s, NULL);
 
     while ([s hasSuffix:@"."]) s = [s substringToIndex:s.length - 1];
 
@@ -89,15 +74,12 @@ static BOOL MMHostsMatch(NSString *a, NSString *b) {
     return [na isEqualToString:MMFirstLabel(nb)] || [nb isEqualToString:MMFirstLabel(na)];
 }
 
+/// O caminho vindo do sistema chega escapado; depois disso é a mesma junção de
+/// pedaços que MMShare aplica ao caminho cadastrado, e comparar os dois só é
+/// confiável enquanto os dois lados normalizarem igual.
 static NSString *MMNormalizePath(NSString *path) {
     NSString *s = [(path ?: @"") stringByRemovingPercentEncoding] ?: (path ?: @"");
-    s = [s stringByReplacingOccurrencesOfString:@"\\" withString:@"/"];
-
-    NSMutableArray<NSString *> *parts = [NSMutableArray array];
-    for (NSString *c in [s componentsSeparatedByString:@"/"]) {
-        if (c.length > 0) [parts addObject:c];
-    }
-    return [[parts componentsJoinedByString:@"/"] lowercaseString];
+    return [MMJoinPathComponents(s) lowercaseString];
 }
 
 /// Quebra o f_mntfromname de um volume de rede em host e caminho.

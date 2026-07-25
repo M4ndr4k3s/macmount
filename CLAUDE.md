@@ -40,12 +40,27 @@ src/
   MMMainWindow     NSTableView com a lista, reordenável arrastando
   MMEditSheet      folha de adicionar/editar (NSGridView, 10.12+)
   MMStatusMenu     NSStatusItem, ícone desenhado em código, preferências
+  MMAlerts         MMShowWarning / MMConfirmWarning — os dois alertas do app
   MMAppDelegate    ciclo de vida, menu principal, modo login, smoke test
 ```
 
 `MMShare`, `MMMounter` e a função `MMDestinationIndexForMove` do `MMStore` são
 deliberadamente livres de UI: é o que `test/logic_tests.m` consegue exercitar sem Mac de
 verdade e sem servidor.
+
+Três coisas moram num lugar só de propósito, porque duplicá-las quebra o app em silêncio —
+sem erro, sem log, só um comportamento que some:
+
+- **`MMSplitHostPort` e `MMJoinPathComponents`** (`MMShare.h`) normalizam host, porta e
+  caminho. O `MMMounter` usa as mesmas funções ao interpretar o `f_mntfromname` de um
+  volume montado. Se os dois lados divergirem num caso de canto — IPv6 sem colchetes,
+  `servidor:` do NFS, espaço sobrando — o app deixa de reconhecer a própria montagem.
+- **`MMShareFieldNames()`** lista as propriedades de `MMShare`, e `-copyWithZone:` percorre
+  essa lista. Campo novo entra ali junto com a `@property`; `testCopy` confere a lista
+  contra as propriedades declaradas em tempo de execução e falha se esquecerem.
+- **`MMMountStateTitle` / `MMMountStateActionTitle`** (`MMCoordinator.h`) dão nome aos
+  estados. A janela e o menu da barra mostram o mesmo estado e não podem chamá-lo
+  diferente.
 
 ## Onde cada coisa é gravada
 

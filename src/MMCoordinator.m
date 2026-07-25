@@ -8,17 +8,42 @@
 
 #include <errno.h>
 
+#import "MMAlerts.h"
 #import "MMKeychain.h"
 #import "MMMounter.h"
 #import "MMStore.h"
 
 NSString *const MMCoordinatorDidChangeNotification = @"MMCoordinatorDidChangeNotification";
 
+NSString *MMMountStateTitle(MMMountState state) {
+    switch (state) {
+        case MMMountStateMounted:     return NSLocalizedString(@"state.mounted", @"Montado");
+        case MMMountStateMounting:    return NSLocalizedString(@"state.mounting", @"Montando…");
+        case MMMountStateUnmounting:  return NSLocalizedString(@"state.unmounting", @"Desmontando…");
+        case MMMountStateUnmounted:
+        default:                      return NSLocalizedString(@"state.unmounted", @"Desmontado");
+    }
+}
+
+NSString *MMMountStateActionTitle(MMMountState state) {
+    switch (state) {
+        case MMMountStateMounted:     return NSLocalizedString(@"action.unmount", @"Desmontar");
+        case MMMountStateUnmounted:   return NSLocalizedString(@"action.mount", @"Montar");
+        default:                      return MMMountStateTitle(state);
+    }
+}
+
 @interface MMCoordinator ()
 /// Só estados transitórios; "montado" é sempre perguntado ao sistema, nunca
 /// guardado — assim o app não mente quando alguém desmonta pelo Finder.
 @property (nonatomic, strong) NSMutableDictionary<NSString *, NSNumber *> *transient;
 @end
+
+// Os blocos de conclusão abaixo capturam self sem __weak de propósito: o
+// coordenador é o singleton de +shared, criado com dispatch_once e vivo até o
+// processo terminar, então a dança weak/strong só acrescentaria ruído sugerindo
+// um ciclo de vida que não existe. Ciclo de retenção também não há — o
+// MMMounter não guarda o bloco, apenas o chama uma vez e o descarta.
 
 @implementation MMCoordinator
 
@@ -116,31 +141,27 @@ NSString *const MMCoordinatorDidChangeNotification = @"MMCoordinatorDidChangeNot
 }
 
 - (void)attemptMount:(MMShare *)share password:(nullable NSString *)password allowUI:(BOOL)allowUI {
-    __weak typeof(self) weakSelf = self;
     [MMMounter mountShare:share password:password allowUI:allowUI
                completion:^(NSString *_Nullable mountPoint, NSError *_Nullable error) {
-        typeof(self) self_ = weakSelf;
-        if (self_ == nil) return;
-
         if (error == nil) {
-            [self_ clearTransientStateForShare:share];
+            [self clearTransientStateForShare:share];
             return;
         }
 
         // Senha guardada recusada: repete deixando o sistema perguntar, em vez
         // de exigir que o usuário vá até as configurações trocar a senha.
         BOOL authFailed = (error.code == EAUTH || error.code == EACCES || error.code == EPERM);
-        if (authFailed && !allowUI && !self_.silent) {
-            [self_ attemptMount:share password:nil allowUI:YES];
+        if (authFailed && !allowUI && !self.silent) {
+            [self attemptMount:share password:nil allowUI:YES];
             return;
         }
 
-        [self_ clearTransientStateForShare:share];
+        [self clearTransientStateForShare:share];
         if (error.code != ECANCELED && error.code != -128) {
-            [self_ reportTitle:[NSString stringWithFormat:
-                                NSLocalizedString(@"alert.mountFailedFmt", @"Falha ao montar “%@”"),
-                                share.displayName]
-                       message:error.localizedDescription];
+            [self reportTitle:[NSString stringWithFormat:
+                               NSLocalizedString(@"alert.mountFailedFmt", @"Falha ao montar “%@”"),
+                               share.displayName]
+                      message:error.localizedDescription];
         }
     }];
 }
@@ -154,101 +175,89 @@ NSString *const MMCoordinatorDidChangeNotification = @"MMCoordinatorDidChangeNot
 
     [self setTransientState:MMMountStateUnmounting forShare:share];
 
-    __weak typeof(self) weakSelf = self;
     [MMMounter unmountPath:path force:NO completion:^(NSError *_Nullable error) {
-        typeof(self) self_ = weakSelf;
-        if (self_ == nil) return;
+        [self clearTransientStateForShare:share];
+        if (error == nil) return;
 
-        if (error == nil) {
-            [self_ clearTransientStateForShare:share];
-            return;
-        }
-
-        [self_ clearTransientStateForShare:share];
-        if (self_.silent) {
+        if (self.silent) {
             NSLog(@"[MacMount] falha ao desmontar %@: %@", path, error.localizedDescription);
             return;
         }
-        [self_ offerForcedUnmountOfShare:share path:path reason:error.localizedDescription];
+        [self offerForcedUnmountOfShare:share path:path reason:error.localizedDescription];
     }];
 }
 
 /// Volume ocupado é o motivo mais comum de falha ao desmontar, e forçar resolve
 /// — mas pode perder gravação pendente, então quem decide é o usuário.
 - (void)offerForcedUnmountOfShare:(MMShare *)share path:(NSString *)path reason:(NSString *)reason {
-    NSAlert *alert = [[NSAlert alloc] init];
-    alert.alertStyle = NSAlertStyleWarning;
-    alert.messageText = [NSString stringWithFormat:
-                         NSLocalizedString(@"alert.unmountFailedFmt", @"Não foi possível desmontar “%@”"),
-                         share.displayName];
-    alert.informativeText = [NSString stringWithFormat:@"%@\n\n%@", reason,
-                             NSLocalizedString(@"alert.forceHint",
-                                               @"Forçar pode descartar gravações ainda não concluídas.")];
-    [alert addButtonWithTitle:NSLocalizedString(@"alert.force", @"Forçar")];
-    [alert addButtonWithTitle:NSLocalizedString(@"alert.cancel", @"Cancelar")];
+    NSString *title = [NSString stringWithFormat:
+                       NSLocalizedString(@"alert.unmountFailedFmt", @"Não foi possível desmontar “%@”"),
+                       share.displayName];
+    NSString *message = [NSString stringWithFormat:@"%@\n\n%@", reason,
+                         NSLocalizedString(@"alert.forceHint",
+                                           @"Forçar pode descartar gravações ainda não concluídas.")];
 
-    if ([alert runModal] != NSAlertFirstButtonReturn) return;
+    if (!MMConfirmWarning(title, message, NSLocalizedString(@"alert.force", @"Forçar"))) return;
 
     [self setTransientState:MMMountStateUnmounting forShare:share];
 
-    __weak typeof(self) weakSelf = self;
     [MMMounter unmountPath:path force:YES completion:^(NSError *_Nullable error) {
-        typeof(self) self_ = weakSelf;
-        if (self_ == nil) return;
-        [self_ clearTransientStateForShare:share];
+        [self clearTransientStateForShare:share];
         if (error != nil) {
-            [self_ reportTitle:NSLocalizedString(@"alert.unmountFailed", @"Falha ao desmontar")
-                       message:error.localizedDescription];
+            [self reportTitle:NSLocalizedString(@"alert.unmountFailed", @"Falha ao desmontar")
+                      message:error.localizedDescription];
         }
     }];
 }
 
-- (void)mountAll {
+/// A lista vem copiada do MMStore, então montar ou desmontar durante a iteração
+/// — o que mexe no estado transitório — não invalida o que está sendo percorrido.
+- (void)enumerateSharesInState:(MMMountState)state usingBlock:(void (^)(MMShare *share))block {
     for (MMShare *share in [MMStore shared].shares) {
-        if ([self stateForShare:share] == MMMountStateUnmounted) [self mountShare:share];
+        if ([self stateForShare:share] == state) block(share);
     }
+}
+
+- (void)mountAll {
+    [self enumerateSharesInState:MMMountStateUnmounted usingBlock:^(MMShare *share) {
+        [self mountShare:share];
+    }];
 }
 
 - (void)unmountAll {
-    for (MMShare *share in [MMStore shared].shares) {
-        if ([self stateForShare:share] == MMMountStateMounted) [self unmountShare:share];
-    }
+    [self enumerateSharesInState:MMMountStateMounted usingBlock:^(MMShare *share) {
+        [self unmountShare:share];
+    }];
 }
 
-- (BOOL)hasMountedShares {
+- (BOOL)hasSharesInState:(MMMountState)state {
     for (MMShare *share in [MMStore shared].shares) {
-        if ([self stateForShare:share] == MMMountStateMounted) return YES;
+        if ([self stateForShare:share] == state) return YES;
     }
     return NO;
 }
 
 - (void)mountFlaggedForLogin {
-    for (MMShare *share in [MMStore shared].shares) {
-        if (!share.mountAtLogin) continue;
-        if ([self stateForShare:share] == MMMountStateUnmounted) [self mountShare:share];
-    }
+    [self enumerateSharesInState:MMMountStateUnmounted usingBlock:^(MMShare *share) {
+        if (share.mountAtLogin) [self mountShare:share];
+    }];
 }
 
 - (void)reconnectFlaggedSharesSilently {
-    for (MMShare *share in [MMStore shared].shares) {
-        if (!share.reconnect) continue;
-        if ([self stateForShare:share] != MMMountStateUnmounted) continue;
-        if ([share validationError] != nil) continue;
+    [self enumerateSharesInState:MMMountStateUnmounted usingBlock:^(MMShare *share) {
+        if (!share.reconnect || [share validationError] != nil) return;
 
         // Só dá para tentar sem interface se houver credencial pronta. Sem
         // isso a montagem abriria o diálogo do sistema do nada, possivelmente
         // com a tela bloqueada ou o usuário longe da máquina.
         NSString *password = share.savePassword ? [MMKeychain passwordForShare:share] : nil;
-        if (!share.guest && password.length == 0) continue;
+        if (!share.guest && password.length == 0) return;
 
         [self setTransientState:MMMountStateMounting forShare:share];
 
-        __weak typeof(self) weakSelf = self;
         [MMMounter mountShare:share password:password allowUI:NO
                    completion:^(NSString *_Nullable mountPoint, NSError *_Nullable error) {
-            typeof(self) self_ = weakSelf;
-            if (self_ == nil) return;
-            [self_ clearTransientStateForShare:share];
+            [self clearTransientStateForShare:share];
             if (error != nil) {
                 // Silêncio é proposital: a rede pode ter voltado pela metade e
                 // a próxima tentativa vem no próximo evento.
@@ -256,7 +265,7 @@ NSString *const MMCoordinatorDidChangeNotification = @"MMCoordinatorDidChangeNot
                       share.displayName, error.localizedDescription);
             }
         }];
-    }
+    }];
 }
 
 - (BOOL)revealShareInFinder:(MMShare *)share {
@@ -275,12 +284,7 @@ NSString *const MMCoordinatorDidChangeNotification = @"MMCoordinatorDidChangeNot
         NSLog(@"[MacMount] %@: %@", title, message);
         return;
     }
-    NSAlert *alert = [[NSAlert alloc] init];
-    alert.alertStyle = NSAlertStyleWarning;
-    alert.messageText = title;
-    alert.informativeText = message;
-    [alert addButtonWithTitle:NSLocalizedString(@"alert.ok", @"OK")];
-    [alert runModal];
+    MMShowWarning(title, message, nil);
 }
 
 @end
