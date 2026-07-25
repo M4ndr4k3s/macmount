@@ -19,7 +19,9 @@ Pages: **não mover nem renomear**, a URL é pública. Roadmap em `docs/ROADMAP.
   Apple Silicon. Notarização de verdade está fora de escopo (exige conta paga).
 - **Nenhum Mac disponível para desenvolvimento.** Todo build e verificação acontece no CI.
   Por isso as verificações estáticas abaixo não são opcionais — são o que substitui abrir o
-  app. Nunca afirme que algo "funciona" sem o CI ter passado.
+  app. Nunca afirme que algo "funciona" sem o CI ter passado, e não chame de "testado" o
+  que só passou no CI. Existe um MacBook Air 2011 com High Sierra para teste manual (a
+  v0.1.0 foi confirmada nele), mas ele entra depois do release, nunca antes.
 
 ## Mapa dos arquivos
 

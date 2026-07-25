@@ -43,8 +43,9 @@ O que entra aqui depende do que quebrar no teste em máquina de verdade. Candida
 
 ## Limites conhecidos
 
-- **Nenhum Mac de desenvolvimento.** Build e verificação acontecem só no CI; o teste em
-  High Sierra real e contra servidor Windows real depende de quem tem a máquina.
+- **Nenhum Mac de desenvolvimento.** Build e verificação acontecem só no CI. Existe um
+  MacBook Air 2011 com High Sierra para teste manual — a v0.1.0 foi confirmada nele —, mas
+  a confirmação vem depois do release, nunca antes.
 - **Sem notarização**, primeira abertura exige o caminho manual (documentado no README).
 - **NFS não usa Keychain** — o protocolo não autentica por senha.
 - **Xcode 16.4 fixado.** Quando o runner deixar de oferecer essa versão, será preciso

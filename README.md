@@ -91,8 +91,10 @@ universal com deployment target 10.13.
 ### Como o suporte ao 10.13 é garantido
 
 O projeto é compilado e publicado pelos runners macOS do GitHub Actions, que são Macs na
-nuvem rodando macOS 15. **Ninguém abre o app num High Sierra de verdade antes do release** —
-no lugar disso:
+nuvem rodando macOS 15 — nenhum desenvolvedor tem um High Sierra à mão durante o
+desenvolvimento. A **v0.1.0 foi confirmada funcionando num MacBook Air de 2011 com macOS
+10.13**, mas essa confirmação vem depois do release, não antes. O que segura cada build
+antes de publicar é isto:
 
 | Garantia | O que pega |
 |---|---|
@@ -101,12 +103,12 @@ no lugar disso:
 | `scripts/check-strings.py` | Toda chave de tradução usada em `src/` existe nos dois idiomas, sem duplicata e com os mesmos especificadores de formato |
 | `make test` | URLs, parsing de UNC, casamento de volume montado, mapa de erros, ida e volta em JSON |
 | `make smoke` | Constrói janela e menu fora da tela — pega constraint quebrada e crash de inicialização |
-| Job "montagem real" no CI | Levanta um Samba no runner e monta de verdade (informativo, pode falhar) |
+| Job "montagem real" no CI | Levanta um Samba no runner e monta de verdade: `NetFSMountURLSync`, detecção por `getfsstat` e desmontagem. Obrigatório — quebra ali barra o merge |
 
-**O que isso não cobre, e vale saber:** ninguém clicou no app num High Sierra real, e o
-comportamento contra um servidor Windows de verdade (domínio, NAS antigo em SMBv1, senha
-expirada) não é exercitado. Se você tem a máquina alvo, o teste que importa é seu — abra o
-`.zip` lá e relate o que quebrar.
+**O que isso não cobre, e vale saber:** nenhuma dessas garantias abre o app numa máquina
+antiga, e nenhuma exercita servidor de verdade com domínio, NAS preso em SMBv1 ou senha
+expirada. O Samba do CI é um servidor sintético e cooperativo. Se você tem a máquina alvo,
+o teste que importa continua sendo o seu — relate o que quebrar.
 
 O app é **Objective-C** por um motivo específico: a ABI do Swift só estabilizou no macOS
 10.14.4, então um app Swift com piso 10.13 teria que embutir o runtime. E SwiftUI só existe
