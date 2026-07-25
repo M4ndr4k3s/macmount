@@ -15,6 +15,11 @@ NS_ASSUME_NONNULL_BEGIN
                inWindow:(NSWindow *)parent
              completion:(void (^)(MMShare *_Nullable saved))completion;
 
+/// Constrói a folha e devolve a janela, sem exibir nem prender a nada.
+/// Existe para o `--smoke` do CI conseguir validar o formulário, que é o
+/// layout mais frágil do app — e o único que ninguém vê antes de publicar.
++ (NSWindow *)buildSheetForSmokeTest;
+
 @end
 
 NS_ASSUME_NONNULL_END

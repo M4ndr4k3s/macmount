@@ -48,6 +48,16 @@
     [controller present];
 }
 
++ (NSWindow *)buildSheetForSmokeTest {
+    MMEditSheet *controller = [[MMEditSheet alloc] init];
+    controller.isNew = YES;   // evita a leitura do Keychain, que pediria acesso
+    controller.share = [[MMShare alloc] init];
+    [controller buildSheet];
+    [controller loadFromShare];
+    [controller.sheet.contentView layoutSubtreeIfNeeded];
+    return controller.sheet;
+}
+
 #pragma mark - Construção
 
 - (void)present {

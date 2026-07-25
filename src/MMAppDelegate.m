@@ -5,6 +5,7 @@
 #import "MMAppDelegate.h"
 
 #import "MMCoordinator.h"
+#import "MMEditSheet.h"
 #import "MMLoginItem.h"
 #import "MMMainWindow.h"
 #import "MMPrefs.h"
@@ -252,7 +253,26 @@ static NSTimeInterval const MMLoginModeTimeout = 120.0;
     // Força o layout sem exibir: é aqui que constraint quebrada aparece.
     [window.window.contentView layoutSubtreeIfNeeded];
 
-    // A folha de edição é construída fora da tela, com uma entrada de exemplo.
+    // A folha de edição é o formulário mais denso do app e a sua altura vem do
+    // conteúdo, não de um número fixo — acrescentar uma linha e cortar os
+    // botões seria fácil, e ninguém abre essa tela antes de publicar.
+    NSWindow *sheet = [MMEditSheet buildSheetForSmokeTest];
+    if (sheet == nil) {
+        fprintf(stderr, "smoke: folha de edição não foi criada\n");
+        ok = NO;
+    } else {
+        NSSize size = sheet.frame.size;
+        NSSize fitting = [sheet.contentView fittingSize];
+        if (size.height + 1.0 < fitting.height || size.width + 1.0 < fitting.width) {
+            fprintf(stderr, "smoke: folha menor que o conteúdo (%.0fx%.0f para caber %.0fx%.0f)\n",
+                    size.width, size.height, fitting.width, fitting.height);
+            ok = NO;
+        } else {
+            fprintf(stdout, "smoke: folha de edição %.0fx%.0f comporta o formulário\n",
+                    size.width, size.height);
+        }
+    }
+
     MMShare *sample = [MMShare shareWithUserInput:@"\\\\SERVIDOR\\Publico"];
     if (![sample.host isEqualToString:@"SERVIDOR"]) {
         fprintf(stderr, "smoke: parser de UNC devolveu host inesperado: %s\n",
