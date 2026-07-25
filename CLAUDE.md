@@ -40,8 +40,11 @@ src/
   MMMainWindow     NSTableView com a lista, reordenável arrastando
   MMEditSheet      folha de adicionar/editar (NSGridView, 10.12+)
   MMStatusMenu     NSStatusItem, ícone desenhado em código, preferências
+  MMMainMenu       a barra do topo; fica montada mesmo sem ícone no Dock
   MMAlerts         MMShowWarning / MMConfirmWarning — os dois alertas do app
-  MMAppDelegate    ciclo de vida, menu principal, modo login, smoke test
+  MMLoginMount     o modo --mount-at-login inteiro: monta, avisa e devolve
+  MMSmokeTest      o --smoke: constrói a interface fora da tela e confere
+  MMAppDelegate    só o ciclo de vida: política do Dock, observadores, encerrar
 ```
 
 `MMShare`, `MMMounter` e a função `MMDestinationIndexForMove` do `MMStore` são

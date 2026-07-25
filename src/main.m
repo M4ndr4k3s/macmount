@@ -12,6 +12,7 @@
 
 #import "MMAppDelegate.h"
 #import "MMLoginItem.h"
+#import "MMSmokeTest.h"
 
 // NSApplication mantém o delegate como referência fraca; guardar em variável
 // local deixaria o ARC liberá-lo logo após a última menção.
@@ -43,8 +44,7 @@ int main(int argc, const char *argv[]) {
 
             NSApplication *app = [NSApplication sharedApplication];
             [app setActivationPolicy:NSApplicationActivationPolicyAccessory];
-            gDelegate = [[MMAppDelegate alloc] init];
-            return [gDelegate runSmokeTest] ? 0 : 1;
+            return [MMSmokeTest run] ? 0 : 1;
         }
 
         NSApplication *app = [NSApplication sharedApplication];

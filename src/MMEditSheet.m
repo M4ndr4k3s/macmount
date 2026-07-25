@@ -97,67 +97,9 @@ static BOOL MMIsChecked(NSButton *checkbox) {
 }
 
 - (void)buildSheet {
-    self.nameField = [NSTextField textFieldWithString:@""];
-    self.nameField.placeholderString = NSLocalizedString(@"edit.namePlaceholder", @"Opcional");
+    [self createFields];
 
-    self.protocolPopUp = [[NSPopUpButton alloc] initWithFrame:NSZeroRect pullsDown:NO];
-    for (NSNumber *proto in MMAllProtocols()) {
-        [self.protocolPopUp addItemWithTitle:MMProtocolDisplayName((MMProtocol)proto.integerValue)];
-        self.protocolPopUp.lastItem.tag = proto.integerValue;
-    }
-    self.protocolPopUp.target = self;
-    self.protocolPopUp.action = @selector(protocolChanged:);
-
-    self.hostField = [[NSComboBox alloc] initWithFrame:NSZeroRect];
-    self.hostField.completes = YES;
-    self.hostField.usesDataSource = NO;
-    self.hostField.delegate = self;
-    self.hostField.placeholderString =
-        NSLocalizedString(@"edit.hostPlaceholder", @"servidor.local, 192.168.0.10 ou \\\\SERVIDOR\\Publico");
-
-    self.shareField = [NSTextField textFieldWithString:@""];
-    self.shareField.placeholderString = NSLocalizedString(@"edit.sharePlaceholder", @"Publico");
-
-    self.userField = [NSTextField textFieldWithString:@""];
-    self.userField.placeholderString = NSLocalizedString(@"edit.userPlaceholder", @"Deixe vazio para perguntar");
-    // "Guardar no Keychain" só faz sentido com usuário preenchido, e isso muda
-    // enquanto se digita — sem o delegate a caixa ficaria travada.
-    self.userField.delegate = self;
-
-    self.passwordField = [[NSSecureTextField alloc] initWithFrame:NSZeroRect];
-
-    self.guestCheck = [self checkbox:NSLocalizedString(@"edit.guest", @"Conectar como convidado")];
-    self.savePasswordCheck = [self checkbox:NSLocalizedString(@"edit.savePassword", @"Guardar a senha no Keychain")];
-    self.readOnlyCheck = [self checkbox:NSLocalizedString(@"edit.readOnly", @"Montar somente leitura")];
-    self.hideCheck = [self checkbox:NSLocalizedString(@"edit.hide", @"Não mostrar na mesa")];
-    self.loginCheck = [self checkbox:NSLocalizedString(@"edit.mountAtLogin", @"Montar ao iniciar a sessão")];
-    self.reconnectCheck = [self checkbox:NSLocalizedString(@"edit.reconnect", @"Reconectar quando a rede voltar")];
-
-    NSGridView *grid = [NSGridView gridViewWithViews:@[
-        @[ [self label:NSLocalizedString(@"edit.name", @"Nome:")],       self.nameField ],
-        @[ [self label:NSLocalizedString(@"edit.protocol", @"Protocolo:")], self.protocolPopUp ],
-        @[ [self label:NSLocalizedString(@"edit.host", @"Servidor:")],   self.hostField ],
-        @[ [self label:NSLocalizedString(@"edit.share", @"Compartilhamento:")], self.shareField ],
-        @[ [self label:NSLocalizedString(@"edit.user", @"Usuário:")],    self.userField ],
-        @[ [self label:NSLocalizedString(@"edit.password", @"Senha:")],  self.passwordField ],
-        @[ [NSGridCell emptyContentView], self.guestCheck ],
-        @[ [NSGridCell emptyContentView], self.savePasswordCheck ],
-        @[ [NSGridCell emptyContentView], self.readOnlyCheck ],
-        @[ [NSGridCell emptyContentView], self.hideCheck ],
-        @[ [NSGridCell emptyContentView], self.loginCheck ],
-        @[ [NSGridCell emptyContentView], self.reconnectCheck ],
-    ]];
-    grid.translatesAutoresizingMaskIntoConstraints = NO;
-    grid.rowSpacing = 8.0;
-    grid.columnSpacing = 10.0;
-    [grid columnAtIndex:0].xPlacement = NSGridCellPlacementTrailing;
-    [grid columnAtIndex:1].xPlacement = NSGridCellPlacementFill;
-    for (NSInteger i = 0; i < grid.numberOfRows; i++) {
-        [grid rowAtIndex:i].yPlacement = NSGridCellPlacementCenter;
-    }
-    // Um respiro antes do bloco de opções.
-    [grid rowAtIndex:6].topPadding = 8.0;
-
+    NSGridView *grid = [self buildGrid];
     NSButton *cancel = [NSButton buttonWithTitle:NSLocalizedString(@"alert.cancel", @"Cancelar")
                                           target:self action:@selector(cancel:)];
     cancel.keyEquivalent = @"\033";
@@ -200,6 +142,76 @@ static BOOL MMIsChecked(NSButton *checkbox) {
     // linha ao formulário não pode espremer o resto nem cortar os botões.
     NSSize fitting = [content fittingSize];
     [self.sheet setContentSize:NSMakeSize(MAX(480.0, fitting.width), fitting.height)];
+}
+
+/// Os controles em si, ainda soltos — quem os posiciona é -buildGrid.
+- (void)createFields {
+    self.nameField = [NSTextField textFieldWithString:@""];
+    self.nameField.placeholderString = NSLocalizedString(@"edit.namePlaceholder", @"Opcional");
+
+    self.protocolPopUp = [[NSPopUpButton alloc] initWithFrame:NSZeroRect pullsDown:NO];
+    for (NSNumber *proto in MMAllProtocols()) {
+        [self.protocolPopUp addItemWithTitle:MMProtocolDisplayName((MMProtocol)proto.integerValue)];
+        self.protocolPopUp.lastItem.tag = proto.integerValue;
+    }
+    self.protocolPopUp.target = self;
+    self.protocolPopUp.action = @selector(protocolChanged:);
+
+    self.hostField = [[NSComboBox alloc] initWithFrame:NSZeroRect];
+    self.hostField.completes = YES;
+    self.hostField.usesDataSource = NO;
+    self.hostField.delegate = self;
+    self.hostField.placeholderString =
+        NSLocalizedString(@"edit.hostPlaceholder", @"servidor.local, 192.168.0.10 ou \\\\SERVIDOR\\Publico");
+
+    self.shareField = [NSTextField textFieldWithString:@""];
+    self.shareField.placeholderString = NSLocalizedString(@"edit.sharePlaceholder", @"Publico");
+
+    self.userField = [NSTextField textFieldWithString:@""];
+    self.userField.placeholderString = NSLocalizedString(@"edit.userPlaceholder", @"Deixe vazio para perguntar");
+    // "Guardar no Keychain" só faz sentido com usuário preenchido, e isso muda
+    // enquanto se digita — sem o delegate a caixa ficaria travada.
+    self.userField.delegate = self;
+
+    self.passwordField = [[NSSecureTextField alloc] initWithFrame:NSZeroRect];
+
+    self.guestCheck = [self checkbox:NSLocalizedString(@"edit.guest", @"Conectar como convidado")];
+    self.savePasswordCheck = [self checkbox:NSLocalizedString(@"edit.savePassword", @"Guardar a senha no Keychain")];
+    self.readOnlyCheck = [self checkbox:NSLocalizedString(@"edit.readOnly", @"Montar somente leitura")];
+    self.hideCheck = [self checkbox:NSLocalizedString(@"edit.hide", @"Não mostrar na mesa")];
+    self.loginCheck = [self checkbox:NSLocalizedString(@"edit.mountAtLogin", @"Montar ao iniciar a sessão")];
+    self.reconnectCheck = [self checkbox:NSLocalizedString(@"edit.reconnect", @"Reconectar quando a rede voltar")];
+}
+
+/// Rótulo à direita na primeira coluna, campo esticado na segunda; as caixas de
+/// opção ocupam só a segunda, alinhadas com os campos acima delas.
+- (NSGridView *)buildGrid {
+    NSGridView *grid = [NSGridView gridViewWithViews:@[
+        @[ [self label:NSLocalizedString(@"edit.name", @"Nome:")],       self.nameField ],
+        @[ [self label:NSLocalizedString(@"edit.protocol", @"Protocolo:")], self.protocolPopUp ],
+        @[ [self label:NSLocalizedString(@"edit.host", @"Servidor:")],   self.hostField ],
+        @[ [self label:NSLocalizedString(@"edit.share", @"Compartilhamento:")], self.shareField ],
+        @[ [self label:NSLocalizedString(@"edit.user", @"Usuário:")],    self.userField ],
+        @[ [self label:NSLocalizedString(@"edit.password", @"Senha:")],  self.passwordField ],
+        @[ [NSGridCell emptyContentView], self.guestCheck ],
+        @[ [NSGridCell emptyContentView], self.savePasswordCheck ],
+        @[ [NSGridCell emptyContentView], self.readOnlyCheck ],
+        @[ [NSGridCell emptyContentView], self.hideCheck ],
+        @[ [NSGridCell emptyContentView], self.loginCheck ],
+        @[ [NSGridCell emptyContentView], self.reconnectCheck ],
+    ]];
+    grid.translatesAutoresizingMaskIntoConstraints = NO;
+    grid.rowSpacing = 8.0;
+    grid.columnSpacing = 10.0;
+    [grid columnAtIndex:0].xPlacement = NSGridCellPlacementTrailing;
+    [grid columnAtIndex:1].xPlacement = NSGridCellPlacementFill;
+    for (NSInteger i = 0; i < grid.numberOfRows; i++) {
+        [grid rowAtIndex:i].yPlacement = NSGridCellPlacementCenter;
+    }
+    // Um respiro antes do bloco de opções.
+    [grid rowAtIndex:6].topPadding = 8.0;
+
+    return grid;
 }
 
 #pragma mark - Campos <-> modelo
