@@ -7,7 +7,10 @@
 //  apontar para um NAS ou um Windows da rede.
 //
 //  Uso: mount_smoke <url> [usuário] [senha] [arquivo-esperado]
-//  Ex.: mount_smoke smb://localhost/teste ci senha123 ola.txt
+//  Ex.: mount_smoke smb://SERVIDOR/Publico leandro senha123 ola.txt
+//       mount_smoke smb://localhost:4450/teste guest '' ola.txt
+//
+//  O usuário literal "guest" liga o modo convidado em vez de virar nome de conta.
 //
 //  Sai 0 se montou, encontrou o arquivo esperado (quando informado) e desmontou.
 //
@@ -36,7 +39,14 @@ int main(int argc, const char *argv[]) {
         }
 
         MMShare *share = [MMShare shareWithUserInput:@(argv[1])];
-        if (argc > 2 && strlen(argv[2]) > 0) share.username = @(argv[2]);
+        if (argc > 2 && strlen(argv[2]) > 0) {
+            NSString *user = @(argv[2]);
+            if ([user isEqualToString:@"guest"]) {
+                share.guest = YES;
+            } else {
+                share.username = user;
+            }
+        }
         NSString *password = (argc > 3 && strlen(argv[3]) > 0) ? @(argv[3]) : nil;
         NSString *expectedFile = (argc > 4 && strlen(argv[4]) > 0) ? @(argv[4]) : nil;
         share.savePassword = NO;

@@ -219,7 +219,9 @@ NSString *const MMCoordinatorDidChangeNotification = @"MMCoordinatorDidChangeNot
 - (BOOL)revealShareInFinder:(MMShare *)share {
     NSString *path = [MMMounter mountPointForShare:share];
     if (path == nil) return NO;
-    [[NSWorkspace sharedWorkspace] openFile:path];
+    // openURL: com file:// em vez de openFile:, que está obsoleto desde o
+    // macOS 11 — e openURL: existe desde o 10.0, então não precisa de guarda.
+    [[NSWorkspace sharedWorkspace] openURL:[NSURL fileURLWithPath:path isDirectory:YES]];
     return YES;
 }
 

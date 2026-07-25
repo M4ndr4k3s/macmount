@@ -70,9 +70,23 @@ else
 fi
 
 # 4. Só frameworks do sistema — nenhuma dependência que precise ser embarcada.
-if otool -L "$BIN" | tail -n +2 | grep -qvE '^[[:space:]]+(/usr/lib/|/System/Library/)'; then
+#    Num binário universal, o otool -L imprime um cabeçalho por arquitetura
+#    ("...MacMount (architecture arm64):") que não é dependência nenhuma. Por
+#    isso a checagem vai fatia a fatia e só olha as linhas indentadas.
+extra=""
+for arch in x86_64 arm64; do
+  found="$(otool -arch "$arch" -L "$BIN" 2>/dev/null \
+           | grep -E '^[[:space:]]' \
+           | grep -vE '^[[:space:]]+(/usr/lib/|/System/Library/)')"
+  if [ -n "$found" ]; then
+    extra="${extra}${arch}:
+${found}
+"
+  fi
+done
+if [ -n "$extra" ]; then
   fail "dependência fora do sistema:"
-  otool -L "$BIN" | tail -n +2 | grep -vE '^[[:space:]]+(/usr/lib/|/System/Library/)' | sed 's/^/        /'
+  printf '%s' "$extra" | sed 's/^/        /'
 else
   ok "só depende de bibliotecas do sistema"
 fi
