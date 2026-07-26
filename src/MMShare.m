@@ -10,6 +10,7 @@ NSString *MMProtocolScheme(MMProtocol proto) {
         case MMProtocolNFS:      return @"nfs";
         case MMProtocolWebDAV:   return @"http";
         case MMProtocolWebDAVS:  return @"https";
+        case MMProtocolEFI:      return @"efi";
         case MMProtocolSMB:
         default:                 return @"smb";
     }
@@ -21,6 +22,7 @@ NSString *MMProtocolDisplayName(MMProtocol proto) {
         case MMProtocolNFS:      return NSLocalizedString(@"proto.nfs", @"NFS");
         case MMProtocolWebDAV:   return NSLocalizedString(@"proto.webdav", @"WebDAV");
         case MMProtocolWebDAVS:  return NSLocalizedString(@"proto.webdavs", @"WebDAV (HTTPS)");
+        case MMProtocolEFI:      return NSLocalizedString(@"proto.efi", @"Disco Local / EFI");
         case MMProtocolSMB:
         default:                 return NSLocalizedString(@"proto.smb", @"SMB");
     }
@@ -39,6 +41,8 @@ BOOL MMProtocolFromScheme(NSString *scheme, MMProtocol *outProto) {
         p = MMProtocolWebDAV;
     } else if ([s isEqualToString:@"https"] || [s isEqualToString:@"webdavs"]) {
         p = MMProtocolWebDAVS;
+    } else if ([s isEqualToString:@"efi"]) {
+        p = MMProtocolEFI;
     } else {
         return NO;
     }
@@ -48,12 +52,12 @@ BOOL MMProtocolFromScheme(NSString *scheme, MMProtocol *outProto) {
 
 NSArray<NSNumber *> *MMAllProtocols(void) {
     return @[ @(MMProtocolSMB), @(MMProtocolAFP), @(MMProtocolNFS),
-              @(MMProtocolWebDAV), @(MMProtocolWebDAVS) ];
+              @(MMProtocolWebDAV), @(MMProtocolWebDAVS), @(MMProtocolEFI) ];
 }
 
 NSArray<NSString *> *MMShareFieldNames(void) {
     return @[ @"identifier", @"name", @"proto", @"host", @"port", @"sharePath",
-              @"username", @"guest", @"readOnly", @"hideOnDesktop",
+              @"username", @"diskIdentifier", @"guest", @"readOnly", @"hideOnDesktop",
               @"mountAtLogin", @"savePassword", @"reconnect" ];
 }
 
@@ -146,6 +150,9 @@ NSString *MMJoinPathComponents(NSString *_Nullable path) {
 }
 
 - (nullable NSURL *)mountURL {
+    // EFI monta via diskutil; não usa URL.
+    if (self.proto == MMProtocolEFI) return nil;
+
     if (self.host.length == 0) return nil;
 
     NSURLComponents *c = [[NSURLComponents alloc] init];
@@ -163,12 +170,24 @@ NSString *MMJoinPathComponents(NSString *_Nullable path) {
 
 - (NSString *)displayName {
     if (self.name.length > 0) return self.name;
+    if (self.proto == MMProtocolEFI) {
+        if (self.diskIdentifier.length > 0) {
+            return [NSString stringWithFormat:@"EFI (%@)", self.diskIdentifier];
+        }
+        return NSLocalizedString(@"share.untitled", @"Novo compartilhamento");
+    }
     NSString *p = [self normalizedSharePath];
     if (self.host.length == 0) return NSLocalizedString(@"share.untitled", @"Novo compartilhamento");
     return p.length > 0 ? [NSString stringWithFormat:@"%@/%@", self.host, p] : self.host;
 }
 
 - (nullable NSString *)validationError {
+    if (self.proto == MMProtocolEFI) {
+        if (self.diskIdentifier.length == 0) {
+            return NSLocalizedString(@"validate.noDisk", @"Informe o identificador do disco (ex.: disk0s1).");
+        }
+        return nil;
+    }
     if (self.host.length == 0) {
         return NSLocalizedString(@"validate.noHost", @"Informe o servidor.");
     }
@@ -249,30 +268,31 @@ NSString *MMJoinPathComponents(NSString *_Nullable path) {
 + (nullable instancetype)shareWithJSONObject:(NSDictionary *)obj {
     if (![obj isKindOfClass:[NSDictionary class]]) return nil;
 
-    NSString *host = obj[@"host"];
-    if (![host isKindOfClass:[NSString class]] || host.length == 0) return nil;
-
     MMShare *s = [[MMShare alloc] init];
     if ([obj[@"id"] isKindOfClass:[NSString class]]) s.identifier = obj[@"id"];
     if ([obj[@"name"] isKindOfClass:[NSString class]]) s.name = obj[@"name"];
-    s.host = host;
 
     MMProtocol p = MMProtocolSMB;
     if ([obj[@"scheme"] isKindOfClass:[NSString class]]) MMProtocolFromScheme(obj[@"scheme"], &p);
     s.proto = p;
 
-    if ([obj[@"port"] isKindOfClass:[NSNumber class]]) s.port = [obj[@"port"] integerValue];
-    if ([obj[@"share"] isKindOfClass:[NSString class]]) s.sharePath = obj[@"share"];
-    if ([obj[@"user"] isKindOfClass:[NSString class]]) s.username = obj[@"user"];
+    if (p == MMProtocolEFI) {
+        if ([obj[@"diskId"] isKindOfClass:[NSString class]]) s.diskIdentifier = obj[@"diskId"];
+        // EFI não precisa de host; pode retornar válido sem ele.
+    } else {
+        NSString *host = obj[@"host"];
+        if (![host isKindOfClass:[NSString class]] || host.length == 0) return nil;
+        s.host = host;
+        if ([obj[@"port"] isKindOfClass:[NSNumber class]]) s.port = [obj[@"port"] integerValue];
+        if ([obj[@"share"] isKindOfClass:[NSString class]]) s.sharePath = obj[@"share"];
+        if ([obj[@"user"] isKindOfClass:[NSString class]]) s.username = obj[@"user"];
+        s.guest         = [obj[@"guest"] boolValue];
+        s.savePassword  = obj[@"savePassword"] ? [obj[@"savePassword"] boolValue] : YES;
+    }
 
-    s.guest         = [obj[@"guest"] boolValue];
     s.readOnly      = [obj[@"readOnly"] boolValue];
     s.hideOnDesktop = [obj[@"hideOnDesktop"] boolValue];
     s.mountAtLogin  = [obj[@"mountAtLogin"] boolValue];
-    // Ausente em cofres antigos significa "sim" — é o padrão do app.
-    s.savePassword  = obj[@"savePassword"] ? [obj[@"savePassword"] boolValue] : YES;
-    // Já `reconnect` ausente significa "não": é recurso novo, e ligar sozinho
-    // em entradas antigas seria mudar o comportamento pelas costas do usuário.
     s.reconnect     = [obj[@"reconnect"] boolValue];
 
     return s;
@@ -283,15 +303,21 @@ NSString *MMJoinPathComponents(NSString *_Nullable path) {
     d[@"id"]            = self.identifier;
     d[@"name"]          = self.name ?: @"";
     d[@"scheme"]        = MMProtocolScheme(self.proto);
-    d[@"host"]          = self.host ?: @"";
-    d[@"share"]         = [self normalizedSharePath];
-    if (self.port > 0) d[@"port"] = @(self.port);
-    if (self.username.length > 0) d[@"user"] = self.username;
-    d[@"guest"]         = @(self.guest);
+
+    if (self.proto == MMProtocolEFI) {
+        if (self.diskIdentifier.length > 0) d[@"diskId"] = self.diskIdentifier;
+    } else {
+        d[@"host"]          = self.host ?: @"";
+        d[@"share"]         = [self normalizedSharePath];
+        if (self.port > 0) d[@"port"] = @(self.port);
+        if (self.username.length > 0) d[@"user"] = self.username;
+        d[@"guest"]         = @(self.guest);
+        d[@"savePassword"]  = @(self.savePassword);
+    }
+
     d[@"readOnly"]      = @(self.readOnly);
     d[@"hideOnDesktop"] = @(self.hideOnDesktop);
     d[@"mountAtLogin"]  = @(self.mountAtLogin);
-    d[@"savePassword"]  = @(self.savePassword);
     d[@"reconnect"]     = @(self.reconnect);
     return d;
 }

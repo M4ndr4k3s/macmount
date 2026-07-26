@@ -25,6 +25,9 @@ NSString *const MMMounterErrorDomain = @"com.mdksoftware.macmount.mount";
 
 @interface MMMounter ()
 + (NSError *)errorWithStatus:(int)status share:(nullable MMShare *)share;
++ (nullable NSString *)mountPointForDiskIdentifier:(NSString *)diskId;
++ (void)mountLocalDisk:(MMShare *)share
+            completion:(void (^)(NSString *_Nullable, NSError *_Nullable))completion;
 @end
 
 /// Converte um campo char[] do statfs em NSString sem explodir com bytes inválidos.
@@ -145,6 +148,10 @@ static void MMParseMountFromName(NSString *from, NSString **outHost, NSString **
 }
 
 + (nullable NSString *)mountPointForShare:(MMShare *)share {
+    if (share.proto == MMProtocolEFI) {
+        return [self mountPointForDiskIdentifier:share.diskIdentifier];
+    }
+
     // getfsstat com buffer próprio: ao contrário de getmntinfo, não usa buffer
     // estático compartilhado, então pode ser chamado de qualquer fila.
     int count = getfsstat(NULL, 0, MNT_NOWAIT);
@@ -172,12 +179,44 @@ static void MMParseMountFromName(NSString *from, NSString **outHost, NSString **
     return found;
 }
 
+/// Procura o ponto de montagem de um identificador de disco (ex.: "disk0s1").
+/// Percorre volumes locais — ao contrário do caminho de rede que os pula.
++ (nullable NSString *)mountPointForDiskIdentifier:(NSString *)diskId {
+    if (diskId.length == 0) return nil;
+
+    int count = getfsstat(NULL, 0, MNT_NOWAIT);
+    if (count <= 0) return nil;
+
+    size_t size = sizeof(struct statfs) * (size_t)count;
+    struct statfs *buf = malloc(size);
+    if (buf == NULL) return nil;
+
+    count = getfsstat(buf, (int)size, MNT_NOWAIT);
+    NSString *found = nil;
+    NSString *devPath = [NSString stringWithFormat:@"/dev/%@", diskId];
+
+    for (int i = 0; i < count && found == nil; i++) {
+        NSString *from = MMStringFromCString(buf[i].f_mntfromname);
+        if ([from isEqualToString:devPath]) {
+            found = MMStringFromCString(buf[i].f_mntonname);
+        }
+    }
+
+    free(buf);
+    return found;
+}
+
 #pragma mark - Montar
 
 + (void)mountShare:(MMShare *)share
           password:(nullable NSString *)password
            allowUI:(BOOL)allowUI
         completion:(void (^)(NSString *_Nullable, NSError *_Nullable))completion {
+
+    if (share.proto == MMProtocolEFI) {
+        [self mountLocalDisk:share completion:completion];
+        return;
+    }
 
     NSURL *url = [share mountURL];
     if (url == nil) {
@@ -259,6 +298,71 @@ static void MMParseMountFromName(NSString *from, NSString **outHost, NSString **
         }
 
         dispatch_async(dispatch_get_main_queue(), ^{ completion(mountPoint, error); });
+    });
+}
+
+/// Monta uma partição local (EFI/GPT) via diskutil.
+/// Tenta primeiro sem privilégios; se o kernel negar (exit ≠ 0), re-tenta
+/// via osascript com prompt de administrador — sem precisar de helper assinado.
++ (void)mountLocalDisk:(MMShare *)share
+            completion:(void (^)(NSString *_Nullable, NSError *_Nullable))completion {
+
+    MMShare *snapshot = [share copy];
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        NSString *diskId = snapshot.diskIdentifier.length > 0 ? snapshot.diskIdentifier : @"EFI";
+        NSDate *startedAt = [NSDate date];
+        NSLog(@"[MacMount] montando disco local %@", diskId);
+
+        // Tenta sem admin primeiro (funciona quando o volume não é protegido).
+        NSTask *task = [[NSTask alloc] init];
+        task.launchPath = @"/usr/sbin/diskutil";
+        task.arguments = @[@"mount", diskId];
+        NSPipe *pipe = [NSPipe pipe];
+        task.standardOutput = pipe;
+        task.standardError  = pipe;
+
+        NSError *launchError = nil;
+        BOOL launched = [task launchAndReturnError:&launchError];
+        if (launched) [task waitUntilExit];
+        BOOL ok = launched && task.terminationStatus == 0;
+
+        if (!ok) {
+            // EFI precisa de root; pede autorização via osascript.
+            NSLog(@"[MacMount] diskutil mount %@ negou acesso (status %d), tentando com admin",
+                  diskId, launched ? (int)task.terminationStatus : -1);
+            NSString *cmd = [NSString stringWithFormat:
+                @"do shell script \"/usr/sbin/diskutil mount %@\" with administrator privileges",
+                diskId];
+            NSTask *adminTask = [[NSTask alloc] init];
+            adminTask.launchPath = @"/usr/bin/osascript";
+            adminTask.arguments  = @[@"-e", cmd];
+            NSPipe *adminPipe = [NSPipe pipe];
+            adminTask.standardOutput = adminPipe;
+            adminTask.standardError  = adminPipe;
+
+            launchError = nil;
+            launched = [adminTask launchAndReturnError:&launchError];
+            if (launched) [adminTask waitUntilExit];
+            ok = launched && adminTask.terminationStatus == 0;
+        }
+
+        NSLog(@"[MacMount] disco local %@ respondeu em %.1fs (ok=%d)",
+              diskId, -[startedAt timeIntervalSinceNow], ok);
+
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (ok) {
+                NSString *mp = [self mountPointForDiskIdentifier:diskId];
+                completion(mp, nil);
+            } else {
+                NSError *err = launchError ?: [NSError errorWithDomain:MMMounterErrorDomain
+                    code:EPERM userInfo:@{
+                        NSLocalizedDescriptionKey: NSLocalizedString(@"mount.efiDenied",
+                            @"Não foi possível montar a partição. "
+                             "Verifique se o identificador está correto e tente novamente.")
+                    }];
+                completion(nil, err);
+            }
+        });
     });
 }
 

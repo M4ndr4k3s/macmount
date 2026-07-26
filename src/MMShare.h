@@ -16,6 +16,7 @@ typedef NS_ENUM(NSInteger, MMProtocol) {
     MMProtocolNFS = 2,   // Unix
     MMProtocolWebDAV = 3,
     MMProtocolWebDAVS = 4,
+    MMProtocolEFI = 5,   // partição local (EFI/GPT) via diskutil
 };
 
 /// "smb", "afp", "nfs", "http", "https" — o esquema da URL passada ao NetFS.
@@ -54,10 +55,13 @@ extern NSArray<NSString *> *MMShareFieldNames(void);
 @property (nonatomic, copy) NSString *identifier;          // UUID, estável entre sessões
 @property (nonatomic, copy) NSString *name;                // rótulo escolhido pelo usuário
 @property (nonatomic, assign) MMProtocol proto;
-@property (nonatomic, copy) NSString *host;                // sem porta
+@property (nonatomic, copy) NSString *host;                // sem porta (network shares)
 @property (nonatomic, assign) NSInteger port;              // 0 = padrão do protocolo
 @property (nonatomic, copy) NSString *sharePath;           // "Publico" ou "Publico/Docs"
 @property (nonatomic, copy, nullable) NSString *username;
+/// Identificador do disco para entradas EFI/locais (ex.: "disk0s1" ou "EFI").
+/// Ignorado para protocolos de rede.
+@property (nonatomic, copy, nullable) NSString *diskIdentifier;
 
 @property (nonatomic, assign) BOOL guest;                  // conectar como convidado
 @property (nonatomic, assign) BOOL readOnly;               // MNT_RDONLY

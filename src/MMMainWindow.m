@@ -9,6 +9,113 @@
 #import "MMShare.h"
 #import "MMStore.h"
 
+#pragma mark - Ícones de tipo (desenhados em código, template)
+
+/// Ícone de compartilhamento de rede (SMB / AFP / NFS / WebDAV).
+/// Servidor compacto: corpo retangular com três "baias" horizontais.
+static NSImage *MMNetworkShareIcon(void) {
+    NSImage *img = [NSImage imageWithSize:NSMakeSize(22, 22)
+                                  flipped:NO
+                           drawingHandler:^BOOL(NSRect r) {
+        [[NSColor blackColor] setStroke];
+        [[NSColor blackColor] setFill];
+
+        // Corpo do servidor.
+        NSRect body = NSMakeRect(2.0, 2.5, 18.0, 17.0);
+        NSBezierPath *shell = [NSBezierPath bezierPathWithRoundedRect:body
+                                                              xRadius:2.0 yRadius:2.0];
+        shell.lineWidth = 1.3;
+        [shell stroke];
+
+        // Três baias de disco (linhas horizontais internas).
+        for (int i = 0; i < 3; i++) {
+            CGFloat y = NSMinY(body) + 3.0 + i * 4.2;
+            NSRect bay = NSMakeRect(NSMinX(body) + 2.5, y, 13.0, 2.8);
+            NSBezierPath *bayPath = [NSBezierPath bezierPathWithRoundedRect:bay
+                                                                    xRadius:1.0 yRadius:1.0];
+            bayPath.lineWidth = 0.9;
+            [bayPath stroke];
+
+            // LED de atividade em cada baia.
+            NSRect led = NSMakeRect(NSMaxX(bay) + 0.5, y + 0.5, 1.8, 1.8);
+            [[NSBezierPath bezierPathWithOvalInRect:led] fill];
+        }
+        return YES;
+    }];
+    img.template = YES;
+    return img;
+}
+
+/// Ícone de partição local / EFI.
+/// Disco dividido em duas seções: partição protegida (cadeado) + dados.
+static NSImage *MMLocalDiskIcon(void) {
+    NSImage *img = [NSImage imageWithSize:NSMakeSize(22, 22)
+                                  flipped:NO
+                           drawingHandler:^BOOL(NSRect r) {
+        [[NSColor blackColor] setStroke];
+        [[NSColor blackColor] setFill];
+
+        // Corpo do disco.
+        NSRect body = NSMakeRect(1.5, 3.5, 19.0, 15.0);
+        NSBezierPath *shell = [NSBezierPath bezierPathWithRoundedRect:body
+                                                              xRadius:2.2 yRadius:2.2];
+        shell.lineWidth = 1.3;
+        [shell stroke];
+
+        // Linha divisória de partição (vertical, a 40% da largura).
+        CGFloat divX = NSMinX(body) + body.size.width * 0.38;
+        NSBezierPath *div = [NSBezierPath bezierPath];
+        div.lineWidth = 1.0;
+        [div moveToPoint:NSMakePoint(divX, NSMinY(body) + 1.5)];
+        [div lineToPoint:NSMakePoint(divX, NSMaxY(body) - 1.5)];
+        [div stroke];
+
+        // Cadeado na partição esquerda (EFI protegida).
+        CGFloat cx = NSMinX(body) + (divX - NSMinX(body)) * 0.5;
+        CGFloat cy = NSMinY(body) + body.size.height * 0.5;
+
+        // Arco do cadeado.
+        NSBezierPath *arc = [NSBezierPath bezierPath];
+        arc.lineWidth = 1.2;
+        [arc appendBezierPathWithArcWithCenter:NSMakePoint(cx, cy + 1.5)
+                                        radius:2.0
+                                    startAngle:0 endAngle:180];
+        [arc stroke];
+
+        // Corpo do cadeado.
+        NSRect lockBody = NSMakeRect(cx - 2.5, cy - 2.0, 5.0, 3.5);
+        NSBezierPath *lockPath = [NSBezierPath bezierPathWithRoundedRect:lockBody
+                                                                 xRadius:0.8 yRadius:0.8];
+        [lockPath fill];
+
+        // Três linhas de dados na partição direita.
+        CGFloat rx = divX + 2.5;
+        CGFloat rw = NSMaxX(body) - rx - 2.0;
+        for (int i = 0; i < 3; i++) {
+            CGFloat ly = NSMinY(body) + 3.0 + i * 3.2;
+            NSBezierPath *line = [NSBezierPath bezierPath];
+            line.lineWidth = 0.9;
+            [line moveToPoint:NSMakePoint(rx, ly)];
+            [line lineToPoint:NSMakePoint(rx + rw, ly)];
+            [line stroke];
+        }
+
+        return YES;
+    }];
+    img.template = YES;
+    return img;
+}
+
+/// Devolve o ícone adequado para o protocolo da entrada.
+static NSImage *MMIconForProtocol(MMProtocol proto) {
+    switch (proto) {
+        case MMProtocolEFI:
+            return MMLocalDiskIcon();
+        default:
+            return MMNetworkShareIcon();
+    }
+}
+
 /// Tipo de pasteboard só para reordenar a lista dentro da própria janela.
 static NSString *const MMShareRowType = @"com.mdksoftware.macmount.share-row";
 
@@ -100,7 +207,7 @@ static NSString *const MMColumnAction = @"action";
     self.tableView = [[NSTableView alloc] initWithFrame:NSZeroRect];
     self.tableView.dataSource = self;
     self.tableView.delegate = self;
-    self.tableView.rowHeight = 46.0;
+    self.tableView.rowHeight = 50.0;
     self.tableView.usesAlternatingRowBackgroundColors = YES;
     self.tableView.allowsMultipleSelection = NO;
     self.tableView.target = self;
@@ -359,7 +466,7 @@ static NSString *const MMColumnAction = @"action";
 /// faz a ponte: ele acompanha a célula por autoresizing e prende o conteúdo
 /// dentro por constraints, centralizado na vertical.
 - (NSView *)wrapCellView:(NSView *)inner insets:(NSEdgeInsets)insets {
-    NSView *container = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 100, self.tableView.rowHeight)];
+    NSView *container = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 100, 50.0)];
     container.translatesAutoresizingMaskIntoConstraints = YES;
     container.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
 
@@ -375,19 +482,41 @@ static NSString *const MMColumnAction = @"action";
     return container;
 }
 
-/// Duas linhas: o rótulo e, abaixo, o endereço real que vai ser montado.
+/// Ícone do tipo + duas linhas de texto (nome em negrito + endereço/detalhe).
 - (NSView *)shareCellForShare:(MMShare *)share {
+    // Ícone do tipo de entrada.
+    NSImageView *iconView = [[NSImageView alloc] initWithFrame:NSMakeRect(0, 0, 24, 24)];
+    iconView.image = MMIconForProtocol(share.proto);
+    iconView.imageScaling = NSImageScaleProportionallyUpOrDown;
+    [iconView setContentHuggingPriority:NSLayoutPriorityRequired
+                         forOrientation:NSLayoutConstraintOrientationHorizontal];
+    [iconView setContentCompressionResistancePriority:NSLayoutPriorityRequired
+                                      forOrientation:NSLayoutConstraintOrientationHorizontal];
+    [NSLayoutConstraint activateConstraints:@[
+        [iconView.widthAnchor constraintEqualToConstant:24.0],
+        [iconView.heightAnchor constraintEqualToConstant:24.0],
+    ]];
+
+    // Nome em destaque.
     NSTextField *title = [NSTextField labelWithString:share.displayName];
     title.font = [NSFont systemFontOfSize:13.0 weight:NSFontWeightMedium];
     title.lineBreakMode = NSLineBreakByTruncatingTail;
 
-    NSURL *url = [share mountURL];
-    NSString *subtitle = url.absoluteString ?: NSLocalizedString(@"share.incomplete", @"Entrada incompleta");
-    if (share.username.length > 0) {
-        subtitle = [NSString stringWithFormat:@"%@ · %@", subtitle, share.username];
-    } else if (share.guest) {
-        subtitle = [NSString stringWithFormat:@"%@ · %@", subtitle,
-                    NSLocalizedString(@"share.guest", @"convidado")];
+    // Detalhe: URL ou informação do disco.
+    NSString *subtitle;
+    if (share.proto == MMProtocolEFI) {
+        subtitle = share.diskIdentifier.length > 0
+            ? [NSString stringWithFormat:@"/dev/%@", share.diskIdentifier]
+            : NSLocalizedString(@"share.incomplete", @"Entrada incompleta");
+    } else {
+        NSURL *url = [share mountURL];
+        subtitle = url.absoluteString ?: NSLocalizedString(@"share.incomplete", @"Entrada incompleta");
+        if (share.username.length > 0) {
+            subtitle = [NSString stringWithFormat:@"%@ · %@", subtitle, share.username];
+        } else if (share.guest) {
+            subtitle = [NSString stringWithFormat:@"%@ · %@", subtitle,
+                        NSLocalizedString(@"share.guest", @"convidado")];
+        }
     }
 
     NSTextField *detail = [NSTextField labelWithString:subtitle];
@@ -395,11 +524,16 @@ static NSString *const MMColumnAction = @"action";
     detail.textColor = [NSColor secondaryLabelColor];
     detail.lineBreakMode = NSLineBreakByTruncatingMiddle;
 
-    NSStackView *stack = [NSStackView stackViewWithViews:@[ title, detail ]];
-    stack.orientation = NSUserInterfaceLayoutOrientationVertical;
-    stack.alignment = NSLayoutAttributeLeading;
-    stack.spacing = 2.0;
-    return stack;
+    NSStackView *textStack = [NSStackView stackViewWithViews:@[ title, detail ]];
+    textStack.orientation = NSUserInterfaceLayoutOrientationVertical;
+    textStack.alignment = NSLayoutAttributeLeading;
+    textStack.spacing = 2.0;
+
+    NSStackView *row = [NSStackView stackViewWithViews:@[ iconView, textStack ]];
+    row.orientation = NSUserInterfaceLayoutOrientationHorizontal;
+    row.alignment = NSLayoutAttributeCenterY;
+    row.spacing = 8.0;
+    return row;
 }
 
 - (void)tableViewSelectionDidChange:(NSNotification *)notification {

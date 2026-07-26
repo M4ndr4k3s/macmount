@@ -37,37 +37,53 @@
     self.statusItem = nil;
 }
 
-/// Silhueta de disco externo, para conversar com o ícone do Dock. Desenhada em
-/// código e marcada como template: a barra de menus exige monocromático com
-/// alfa, porque é o sistema que inverte a cor entre barra clara e escura —
-/// reduzir o ícone colorido do app aqui daria uma mancha que some no escuro.
-/// SF Symbols resolveria em uma linha, mas só existe do macOS 11 em diante.
+/// Ícone de HD interno do Mac para a barra de menus.
+/// Desenhado em código como template (monocromático com alfa), o que permite ao
+/// sistema inverter automaticamente para barra clara ou escura.
+/// O estilo imita o ícone clássico de disco interno do Finder: corpo mais quadrado,
+/// janela circular das bandejas de disco e detalhes do conector traseiro.
 - (NSImage *)statusImage {
     NSSize size = NSMakeSize(18.0, 18.0);
     NSImage *image = [NSImage imageWithSize:size flipped:NO drawingHandler:^BOOL(NSRect rect) {
         [[NSColor blackColor] setStroke];
         [[NSColor blackColor] setFill];
 
-        // Corpo do disco. Meio pixel de deslocamento para o traço cair sobre a
-        // grade e não sair borrado em tela sem retina.
-        NSRect body = NSMakeRect(2.5, 4.5, 13.0, 9.0);
+        // Corpo principal — mais quadrado que o externo, tipo HD 3.5" interno.
+        NSRect body = NSMakeRect(1.5, 3.5, 15.0, 11.0);
         NSBezierPath *shell = [NSBezierPath bezierPathWithRoundedRect:body
-                                                              xRadius:2.2
-                                                              yRadius:2.2];
-        shell.lineWidth = 1.4;
+                                                              xRadius:1.8
+                                                              yRadius:1.8];
+        shell.lineWidth = 1.3;
         [shell stroke];
 
-        // Emenda entre tampa e carcaça, o que faz a forma ler como "disco" e
-        // não como um retângulo qualquer.
-        NSBezierPath *seam = [NSBezierPath bezierPath];
-        seam.lineWidth = 1.2;
-        [seam moveToPoint:NSMakePoint(NSMinX(body), 10.0)];
-        [seam lineToPoint:NSMakePoint(NSMaxX(body), 10.0)];
-        [seam stroke];
+        // Janela circular das bandejas (o que distingue "interno" de "externo"
+        // no vocabulário visual do Finder).
+        NSRect platter = NSMakeRect(3.2, 5.5, 5.8, 5.8);
+        NSBezierPath *circle = [NSBezierPath bezierPathWithOvalInRect:platter];
+        circle.lineWidth = 1.2;
+        [circle stroke];
 
-        // Luz de atividade.
-        NSRect led = NSMakeRect(4.6, 6.4, 2.0, 2.0);
-        [[NSBezierPath bezierPathWithOvalInRect:led] fill];
+        // Anel interno da bandeja (profundidade).
+        NSRect innerRing = NSMakeRect(5.0, 7.3, 2.2, 2.2);
+        [[NSBezierPath bezierPathWithOvalInRect:innerRing] fill];
+
+        // Linhas do PCB/conector — direita do corpo.
+        CGFloat lx = NSMaxX(body) - 4.0;
+        for (int i = 0; i < 3; i++) {
+            CGFloat ly = NSMinY(body) + 2.5 + i * 2.2;
+            NSBezierPath *line = [NSBezierPath bezierPath];
+            line.lineWidth = 0.9;
+            [line moveToPoint:NSMakePoint(lx, ly)];
+            [line lineToPoint:NSMakePoint(NSMaxX(body) - 1.8, ly)];
+            [line stroke];
+        }
+
+        // Entalhe do conector traseiro (borda superior).
+        NSRect notch = NSMakeRect(6.0, NSMaxY(body) - 0.1, 6.0, 1.5);
+        NSBezierPath *notchPath = [NSBezierPath bezierPathWithRoundedRect:notch
+                                                                  xRadius:0.8
+                                                                  yRadius:0.8];
+        [notchPath fill];
 
         return YES;
     }];
@@ -169,6 +185,13 @@
     dockIcon.state = MMPrefs.showDockIcon ? NSControlStateValueOn : NSControlStateValueOff;
     [menu addItem:dockIcon];
 
+    NSMenuItem *darkMode = [[NSMenuItem alloc]
+        initWithTitle:NSLocalizedString(@"menu.darkMode", @"Interface escura")
+               action:@selector(toggleDarkMode:) keyEquivalent:@""];
+    darkMode.target = self;
+    darkMode.state = MMPrefs.forceDarkMode ? NSControlStateValueOn : NSControlStateValueOff;
+    [menu addItem:darkMode];
+
     NSMenuItem *notify = [[NSMenuItem alloc]
         initWithTitle:NSLocalizedString(@"menu.notifyOnLogin", @"Avisar ao montar no login")
                action:@selector(toggleLoginNotification:) keyEquivalent:@""];
@@ -213,6 +236,10 @@
 
 - (void)toggleDockIcon:(id)sender {
     MMPrefs.showDockIcon = !MMPrefs.showDockIcon;
+}
+
+- (void)toggleDarkMode:(id)sender {
+    MMPrefs.forceDarkMode = !MMPrefs.forceDarkMode;
 }
 
 - (void)toggleLoginNotification:(id)sender {

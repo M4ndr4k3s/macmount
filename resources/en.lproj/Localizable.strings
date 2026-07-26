@@ -8,6 +8,7 @@
 "proto.nfs"     = "NFS (Unix)";
 "proto.webdav"  = "WebDAV";
 "proto.webdavs" = "WebDAV (HTTPS)";
+"proto.efi"     = "Local Disk / EFI";
 
 /* Model */
 "share.untitled"   = "New share";
@@ -20,6 +21,7 @@
 "validate.badPort"  = "Invalid port.";
 "validate.noExport" = "Enter the exported path.";
 "validate.badURL"   = "Could not build a valid address.";
+"validate.noDisk"   = "Enter the disk identifier (e.g. disk0s1).";
 
 /* Mount results */
 "mount.ok"            = "Mounted.";
@@ -44,6 +46,7 @@
 "mount.netauthFailed" = "The system could not complete the mount.";
 "mount.errnoFmt"      = "Mount failed: %s (%d)";
 "mount.unknownFmt"    = "Mount failed (code %d).";
+"mount.efiDenied"     = "Could not mount the partition. Check that the identifier is correct and try again.";
 
 /* Keychain */
 "keychain.cannotStore" = "Cannot store a password for this entry.";
@@ -69,10 +72,12 @@
 "edit.share"           = "Share:";
 "edit.user"            = "User name:";
 "edit.password"        = "Password:";
+"edit.disk"            = "Disk:";
 "edit.namePlaceholder" = "Optional";
 "edit.hostPlaceholder" = "server.local, 192.168.0.10 or \\\\SERVER\\Public";
 "edit.sharePlaceholder" = "Public";
 "edit.userPlaceholder" = "Leave empty to be asked";
+"edit.diskIdPlaceholder" = "disk0s1 or EFI";
 "edit.guest"           = "Connect as guest";
 "edit.savePassword"    = "Save the password in the Keychain";
 "edit.readOnly"        = "Mount read-only";
@@ -81,6 +86,11 @@
 "edit.reconnect"       = "Reconnect when the network returns";
 "edit.save"            = "Save";
 "edit.invalid"         = "Incomplete entry";
+"edit.scanDisks"       = "Search…";
+"edit.selectEFI"       = "Select an EFI partition";
+"edit.use"             = "Use";
+"edit.noEFI"           = "No EFI partitions found";
+"edit.noEFIHint"       = "No EFI partitions were found on this computer. Check that the disk is connected and try again.";
 
 /* Main window */
 "column.share"      = "Share";
@@ -123,6 +133,7 @@
 
 /* Preferences and notifications */
 "menu.showDockIcon" = "Show icon in the Dock";
+"menu.darkMode"     = "Dark interface";
 "menu.notifyOnLogin" = "Notify when mounting at login";
 "notify.oneMounted"  = "1 share mounted.";
 "notify.allMountedFmt" = "%lu shares mounted.";

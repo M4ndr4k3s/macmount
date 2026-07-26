@@ -38,6 +38,10 @@
 
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<!-- Opt-in explícito ao dark mode (padrão no Mojave+; declarar aqui
+	     garante que apps com piso 10.13 também recebam o tema escuro). -->
+	<key>NSRequiresAquaSystemAppearance</key>
+	<false/>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.utilities</string>
 
