@@ -11,13 +11,11 @@
 #import "MMShare.h"
 #import "MMStore.h"
 
-/// Teto para a montagem automática do login: sem isso, um servidor sumido
-/// deixaria o processo vivo para sempre esperando um soft mount desistir.
+/// Teto para a montagem automática do início da sessão. Não é mais o prazo para
+/// encerrar o processo — o app fica vivo —, e sim o ponto em que ele para de se
+/// considerar "no login": dá o aviso com o que conseguiu e volta ao modo normal,
+/// em que uma falha vira alerta na tela em vez de linha de log.
 static NSTimeInterval const MMLoginMountTimeout = 120.0;
-
-/// A notificação é entregue de forma assíncrona pelo sistema; encerrar no mesmo
-/// ciclo de run loop a engoliria antes de ela aparecer na tela.
-static NSTimeInterval const MMLoginMountNotificationGrace = 1.5;
 
 @interface MMLoginMount ()
 @property (nonatomic, strong, nullable) NSTimer *watchdog;
@@ -67,7 +65,8 @@ static NSTimeInterval const MMLoginMountNotificationGrace = 1.5;
     BOOL timedOut = [[NSDate date] timeIntervalSinceDate:self.startedAt] > MMLoginMountTimeout;
 
     if (timedOut && !done) {
-        NSLog(@"[MacMount] montagem no login excedeu %.0fs; encerrando.", MMLoginMountTimeout);
+        NSLog(@"[MacMount] montagem do início da sessão excedeu %.0fs; "
+               "o que faltou fica com o MMReconnector.", MMLoginMountTimeout);
     }
     if (!done && !timedOut) return;
 
@@ -75,9 +74,7 @@ static NSTimeInterval const MMLoginMountNotificationGrace = 1.5;
     self.watchdog = nil;
 
     [self notifyResult];
-    [self performSelector:@selector(finish)
-               withObject:nil
-               afterDelay:MMLoginMountNotificationGrace];
+    [self finish];
 }
 
 - (void)finish {

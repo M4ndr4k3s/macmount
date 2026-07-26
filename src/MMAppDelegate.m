@@ -4,6 +4,8 @@
 
 #import "MMAppDelegate.h"
 
+#include <unistd.h>
+
 #import "MMCoordinator.h"
 #import "MMLoginItem.h"
 #import "MMLoginMount.h"
@@ -18,19 +20,28 @@
 @property (nonatomic, strong) MMStatusMenu *statusMenu;
 @property (nonatomic, strong) MMReconnector *reconnector;
 @property (nonatomic, strong) MMLoginMount *loginMount;
+/// Ligado durante toda a abertura junto com a sessão, inclusive antes de a
+/// montagem começar. É o que impede o app de roubar o foco ou abrir a janela
+/// num momento em que o combinado é não aparecer.
+@property (nonatomic, assign) BOOL startingWithSession;
 @end
 
 @implementation MMAppDelegate
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notification {
-    [[MMCoordinator shared] startObservingVolumes];
-    [MMLoginItem refreshIfInstalled];
-
-    if (self.mountAtLoginMode) {
-        self.loginMount = [[MMLoginMount alloc] init];
-        [self.loginMount startWithCompletion:^{ [NSApp terminate:nil]; }];
+    if ([self anotherInstanceIsRunning]) {
+        NSLog(@"[MacMount] já há uma cópia em execução; encerrando esta.");
+        [NSApp terminate:nil];
         return;
     }
+
+    // A montagem automática vale para os dois jeitos de o app nascer junto com a
+    // sessão: o nosso LaunchAgent, que passa --mount-at-login, e os Itens de
+    // Início do sistema, que não passam nada — daí a segunda pergunta.
+    self.startingWithSession = self.mountAtLoginMode || [self wasLaunchedAutomatically:notification];
+
+    [[MMCoordinator shared] startObservingVolumes];
+    [MMLoginItem refreshIfInstalled];
 
     [MMMainMenu install];
 
@@ -54,7 +65,47 @@
                                                object:nil];
     [self syncLoginItem];
 
+    if (self.startingWithSession) {
+        [self startSessionMount];
+        return;   // nenhuma janela: o app fica na barra de menus
+    }
+
     [[MMMainWindow shared] showAndActivate];
+}
+
+/// O launchd inicia o executável direto, por dentro do pacote, sem passar pelo
+/// LaunchServices — então ele não deduplica, e uma cópia pelo LaunchAgent mais
+/// outra pelos Itens de Início do sistema convivem no mesmo login. Duas cópias
+/// montando o mesmo compartilhamento ao mesmo tempo é receita de montagem
+/// travada, e a segunda ainda abre a janela que não deveria existir.
+- (BOOL)anotherInstanceIsRunning {
+    NSString *identifier = [[NSBundle mainBundle] bundleIdentifier];
+    if (identifier.length == 0) return NO;
+
+    pid_t mine = getpid();
+    for (NSRunningApplication *app in
+         [NSRunningApplication runningApplicationsWithBundleIdentifier:identifier]) {
+        if (app.processIdentifier != mine && !app.terminated) return YES;
+    }
+    return NO;
+}
+
+/// Aberto pelo sistema (Itens de Início, retomada de sessão) em vez de por um
+/// duplo clique. Existe desde o 10.8; ausente, tratamos como abertura normal.
+- (BOOL)wasLaunchedAutomatically:(NSNotification *)notification {
+    NSNumber *byUser = notification.userInfo[NSApplicationLaunchIsDefaultLaunchKey];
+    return byUser != nil && !byUser.boolValue;
+}
+
+/// Monta o que está marcado, calado, e devolve o app ao modo normal no fim —
+/// sem isso o resto da sessão ficaria sem alerta nenhum de erro.
+- (void)startSessionMount {
+    self.loginMount = [[MMLoginMount alloc] init];
+    [self.loginMount startWithCompletion:^{
+        [MMCoordinator shared].silent = NO;
+        self.loginMount = nil;
+        self.startingWithSession = NO;
+    }];
 }
 
 /// Com o ícone escondido o app vira "accessory": some do Dock e do alternador
@@ -69,8 +120,10 @@
     if (NSApp.activationPolicy == wanted) return;
     [NSApp setActivationPolicy:wanted];
 
-    // Voltar para "regular" sem reativar deixa o app sem foco e sem menu.
-    if (wanted == NSApplicationActivationPolicyRegular) {
+    // Voltar para "regular" sem reativar deixa o app sem foco e sem menu. Mas no
+    // início da sessão isso roubaria o foco de quem está fazendo outra coisa, e
+    // o combinado ali é justamente não aparecer.
+    if (wanted == NSApplicationActivationPolicyRegular && !self.startingWithSession) {
         [NSApp activateIgnoringOtherApps:YES];
     }
 }
@@ -80,11 +133,10 @@
 }
 
 - (BOOL)applicationShouldHandleReopen:(NSApplication *)sender hasVisibleWindows:(BOOL)flag {
-    // No modo login o processo existe só para montar e encerrar. Um evento de
-    // reabertura chegando aqui — o Dock, o Finder ou o próprio launchd pedindo
-    // para "abrir o app" — materializaria a janela no meio do login. É o único
-    // caminho que ainda podia trazê-la de volta, e ele fica fechado.
-    if (self.mountAtLoginMode) return NO;
+    // Durante a montagem do início da sessão, um pedido de "abrir o app" — do
+    // Dock, do Finder ou do próprio launchd — materializaria a janela no meio do
+    // login. Depois disso, reabrir volta a significar o que significa sempre.
+    if (self.startingWithSession) return NO;
 
     [[MMMainWindow shared] showAndActivate];
     return YES;
