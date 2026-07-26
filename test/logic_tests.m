@@ -405,6 +405,7 @@ static void testCopy(void) {
     original.mountAtLogin = YES;
     original.savePassword = NO;
     original.reconnect = YES;
+    original.diskIdentifier = @"disk0s1";
 
     MMShare *clone = [original copy];
     checkBool(clone != original, @"-copy devolve outro objeto");
@@ -537,6 +538,59 @@ static void testValidation(void) {
     checkBool([badPort validationError] != nil, @"porta fora da faixa é inválida");
 }
 
+#pragma mark - Partição EFI
+
+static void testEFI(void) {
+    section(@"Partição EFI");
+
+    // Validação
+    MMShare *noId = [[MMShare alloc] init];
+    noId.proto = MMProtocolEFI;
+    checkBool([noId validationError] != nil, @"EFI sem diskIdentifier é inválido");
+
+    MMShare *withId = [[MMShare alloc] init];
+    withId.proto = MMProtocolEFI;
+    withId.diskIdentifier = @"disk0s1";
+    checkBool([withId validationError] == nil, @"EFI com diskIdentifier é válido");
+
+    // mountURL retorna nil para EFI (não é volume de rede)
+    checkBool([withId mountURL] == nil, @"EFI não produz URL de montagem de rede");
+
+    // displayName inclui o identificador do disco
+    withId.name = @"";
+    NSString *dn = withId.displayName;
+    checkBool([dn containsString:@"disk0s1"],
+              @"displayName de EFI inclui o identificador do disco");
+
+    // Ida e volta em JSON
+    MMShare *efi = [[MMShare alloc] init];
+    efi.proto = MMProtocolEFI;
+    efi.diskIdentifier = @"disk0s1";
+    efi.name = @"EFI principal";
+    efi.mountAtLogin = YES;
+
+    NSDictionary *json = [efi JSONObject];
+    checkBool([json[@"scheme"] isEqualToString:@"efi"],
+              @"JSON de EFI guarda scheme=efi");
+    checkBool(json[@"diskId"] != nil, @"JSON de EFI guarda diskId");
+    checkBool(json[@"host"] == nil, @"JSON de EFI não guarda host");
+
+    MMShare *restored = [MMShare shareWithJSONObject:json];
+    checkBool(restored != nil, @"JSON de EFI é restaurado");
+    checkEqualInteger(restored.proto, MMProtocolEFI, @"protocolo EFI preservado");
+    checkEqualString(restored.diskIdentifier, efi.diskIdentifier,
+                     @"diskIdentifier preservado");
+    checkEqualString(restored.name, efi.name, @"nome EFI preservado");
+    checkBool(restored.mountAtLogin == efi.mountAtLogin, @"mountAtLogin EFI preservado");
+
+    // EFI mínimo (sem host) deve ser aceito
+    MMShare *minimal = [MMShare shareWithJSONObject:@{ @"scheme": @"efi",
+                                                       @"diskId": @"disk0s1" }];
+    checkBool(minimal != nil, @"EFI mínimo sem host é aceito");
+    checkEqualInteger(minimal.proto, MMProtocolEFI, @"protocolo EFI mínimo correto");
+    checkEqualString(minimal.diskIdentifier, @"disk0s1", @"diskId mínimo preservado");
+}
+
 #pragma mark -
 
 int main(int argc, const char *argv[]) {
@@ -552,6 +606,7 @@ int main(int argc, const char *argv[]) {
         testRoundTrip();
         testCopy();
         testValidation();
+        testEFI();
         testReorderIndex();
 
         fprintf(stdout, "\n%d verificações, %d falha(s).\n", gChecks, gFails);

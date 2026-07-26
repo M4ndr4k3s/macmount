@@ -9,6 +9,60 @@
 #import "MMKeychain.h"
 #import "MMStore.h"
 
+/// Descobre partições EFI disponíveis via diskutil list -plist.
+/// Devolve array de dicionários com "diskId" (ex.: "disk0s1") e "label" (ex.: "EFI — disk0s1").
+static NSArray<NSDictionary *> *MMDiscoverEFIPartitions(void) {
+    NSTask *task = [[NSTask alloc] init];
+    task.launchPath = @"/usr/sbin/diskutil";
+    task.arguments = @[@"list", @"-plist"];
+    NSPipe *pipe = [NSPipe pipe];
+    task.standardOutput = pipe;
+    task.standardError = [NSPipe pipe];
+
+    NSError *err = nil;
+    if (![task launchAndReturnError:&err]) return @[];
+    [task waitUntilExit];
+
+    NSData *data = [[pipe fileHandleForReading] readDataToEndOfFile];
+    if (data.length == 0) return @[];
+
+    id plist = [NSPropertyListSerialization propertyListWithData:data
+                                                         options:0
+                                                          format:nil
+                                                           error:nil];
+    if (![plist isKindOfClass:[NSDictionary class]]) return @[];
+
+    NSArray *disks = plist[@"AllDisksAndPartitions"];
+    if (![disks isKindOfClass:[NSArray class]]) return @[];
+
+    NSMutableArray<NSDictionary *> *result = [NSMutableArray array];
+    for (NSDictionary *disk in disks) {
+        NSArray *partitions = disk[@"Partitions"];
+        if (![partitions isKindOfClass:[NSArray class]]) continue;
+        NSString *diskDev = disk[@"DeviceIdentifier"] ?: @"?";
+
+        for (NSDictionary *part in partitions) {
+            NSString *content = part[@"Content"] ?: @"";
+            if (![content isEqualToString:@"EFI"]) continue;
+
+            NSString *diskId = part[@"DeviceIdentifier"] ?: @"";
+            if (diskId.length == 0) continue;
+
+            NSString *size = @"";
+            NSNumber *bytes = part[@"Size"];
+            if ([bytes isKindOfClass:[NSNumber class]]) {
+                double mb = bytes.doubleValue / (1024.0 * 1024.0);
+                size = [NSString stringWithFormat:@" %.0f MB", mb];
+            }
+
+            NSString *label = [NSString stringWithFormat:@"EFI — %@ (%@%@)",
+                               diskId, diskDev, size];
+            [result addObject:@{ @"diskId": diskId, @"label": label }];
+        }
+    }
+    return result;
+}
+
 /// As caixas de opção do formulário são um espelho direto de campos BOOL do
 /// modelo; sem estes dois atalhos, cada campo custa uma linha comprida de
 /// NSControlStateValue em cada direção, doze ao todo, e o que a folha faz de
@@ -31,6 +85,7 @@ static BOOL MMIsChecked(NSButton *checkbox) {
 @property (nonatomic, strong) MMBrowser *browser;
 @property (nonatomic, strong) MMEditSheet *selfRetain;
 
+// Campos de rede
 @property (nonatomic, strong) NSTextField *nameField;
 @property (nonatomic, strong) NSPopUpButton *protocolPopUp;
 @property (nonatomic, strong) NSComboBox *hostField;
@@ -38,12 +93,26 @@ static BOOL MMIsChecked(NSButton *checkbox) {
 @property (nonatomic, strong) NSTextField *userField;
 @property (nonatomic, strong) NSSecureTextField *passwordField;
 
+// Campo EFI
+@property (nonatomic, strong) NSTextField *diskIdField;
+@property (nonatomic, strong) NSButton *diskScanButton;
+
+// Checkboxes
 @property (nonatomic, strong) NSButton *guestCheck;
 @property (nonatomic, strong) NSButton *savePasswordCheck;
 @property (nonatomic, strong) NSButton *readOnlyCheck;
 @property (nonatomic, strong) NSButton *hideCheck;
 @property (nonatomic, strong) NSButton *loginCheck;
 @property (nonatomic, strong) NSButton *reconnectCheck;
+
+// Linhas da grid para show/hide por protocolo
+@property (nonatomic, strong) NSGridRow *hostRow;
+@property (nonatomic, strong) NSGridRow *shareRow;
+@property (nonatomic, strong) NSGridRow *userRow;
+@property (nonatomic, strong) NSGridRow *passwordRow;
+@property (nonatomic, strong) NSGridRow *guestRow;
+@property (nonatomic, strong) NSGridRow *savePasswordRow;
+@property (nonatomic, strong) NSGridRow *diskIdRow;
 
 @end
 
@@ -175,6 +244,15 @@ static BOOL MMIsChecked(NSButton *checkbox) {
 
     self.passwordField = [[NSSecureTextField alloc] initWithFrame:NSZeroRect];
 
+    self.diskIdField = [NSTextField textFieldWithString:@""];
+    self.diskIdField.placeholderString =
+        NSLocalizedString(@"edit.diskIdPlaceholder", @"disk0s1 ou EFI");
+
+    self.diskScanButton = [NSButton buttonWithTitle:NSLocalizedString(@"edit.scanDisks", @"Procurar…")
+                                            target:self
+                                            action:@selector(scanDisks:)];
+    self.diskScanButton.bezelStyle = NSBezelStyleRounded;
+
     self.guestCheck = [self checkbox:NSLocalizedString(@"edit.guest", @"Conectar como convidado")];
     self.savePasswordCheck = [self checkbox:NSLocalizedString(@"edit.savePassword", @"Guardar a senha no Keychain")];
     self.readOnlyCheck = [self checkbox:NSLocalizedString(@"edit.readOnly", @"Montar somente leitura")];
@@ -183,18 +261,33 @@ static BOOL MMIsChecked(NSButton *checkbox) {
     self.reconnectCheck = [self checkbox:NSLocalizedString(@"edit.reconnect", @"Reconectar quando a rede voltar")];
 }
 
+/// Campo "Disco:" com botão "Procurar…" na mesma célula (stack horizontal).
+- (NSView *)diskIdRow_content {
+    NSStackView *s = [NSStackView stackViewWithViews:@[ self.diskIdField, self.diskScanButton ]];
+    s.orientation = NSUserInterfaceLayoutOrientationHorizontal;
+    s.spacing = 8.0;
+    [self.diskScanButton setContentHuggingPriority:NSLayoutPriorityRequired
+                                    forOrientation:NSLayoutConstraintOrientationHorizontal];
+    return s;
+}
+
 /// Rótulo à direita na primeira coluna, campo esticado na segunda; as caixas de
 /// opção ocupam só a segunda, alinhadas com os campos acima delas.
+/// Linhas EFI aparecem abaixo do protocolo e são ocultadas para protocolos de rede.
 - (NSGridView *)buildGrid {
     NSGridView *grid = [NSGridView gridViewWithViews:@[
-        @[ [self label:NSLocalizedString(@"edit.name", @"Nome:")],       self.nameField ],
+        @[ [self label:NSLocalizedString(@"edit.name", @"Nome:")],          self.nameField ],
         @[ [self label:NSLocalizedString(@"edit.protocol", @"Protocolo:")], self.protocolPopUp ],
-        @[ [self label:NSLocalizedString(@"edit.host", @"Servidor:")],   self.hostField ],
+        // Linha EFI — disco local (visível só quando proto == EFI):
+        @[ [self label:NSLocalizedString(@"edit.disk", @"Disco:")],         [self diskIdRow_content] ],
+        // Linhas de rede (ocultadas quando proto == EFI):
+        @[ [self label:NSLocalizedString(@"edit.host", @"Servidor:")],      self.hostField ],
         @[ [self label:NSLocalizedString(@"edit.share", @"Compartilhamento:")], self.shareField ],
-        @[ [self label:NSLocalizedString(@"edit.user", @"Usuário:")],    self.userField ],
-        @[ [self label:NSLocalizedString(@"edit.password", @"Senha:")],  self.passwordField ],
+        @[ [self label:NSLocalizedString(@"edit.user", @"Usuário:")],       self.userField ],
+        @[ [self label:NSLocalizedString(@"edit.password", @"Senha:")],     self.passwordField ],
         @[ [NSGridCell emptyContentView], self.guestCheck ],
         @[ [NSGridCell emptyContentView], self.savePasswordCheck ],
+        // Linhas comuns:
         @[ [NSGridCell emptyContentView], self.readOnlyCheck ],
         @[ [NSGridCell emptyContentView], self.hideCheck ],
         @[ [NSGridCell emptyContentView], self.loginCheck ],
@@ -209,7 +302,16 @@ static BOOL MMIsChecked(NSButton *checkbox) {
         [grid rowAtIndex:i].yPlacement = NSGridCellPlacementCenter;
     }
     // Um respiro antes do bloco de opções.
-    [grid rowAtIndex:6].topPadding = 8.0;
+    [grid rowAtIndex:9].topPadding = 8.0;
+
+    // Salvar referências para controle de visibilidade.
+    self.diskIdRow       = [grid rowAtIndex:2];
+    self.hostRow         = [grid rowAtIndex:3];
+    self.shareRow        = [grid rowAtIndex:4];
+    self.userRow         = [grid rowAtIndex:5];
+    self.passwordRow     = [grid rowAtIndex:6];
+    self.guestRow        = [grid rowAtIndex:7];
+    self.savePasswordRow = [grid rowAtIndex:8];
 
     return grid;
 }
@@ -218,10 +320,11 @@ static BOOL MMIsChecked(NSButton *checkbox) {
 
 - (void)loadFromShare {
     MMShare *s = self.share;
-    self.nameField.stringValue = s.name ?: @"";
-    self.hostField.stringValue = s.host ?: @"";
-    self.shareField.stringValue = [s normalizedSharePath];
-    self.userField.stringValue = s.username ?: @"";
+    self.nameField.stringValue    = s.name ?: @"";
+    self.hostField.stringValue    = s.host ?: @"";
+    self.shareField.stringValue   = [s normalizedSharePath];
+    self.userField.stringValue    = s.username ?: @"";
+    self.diskIdField.stringValue  = s.diskIdentifier ?: @"";
 
     [self.protocolPopUp selectItemWithTag:s.proto];
 
@@ -232,7 +335,7 @@ static BOOL MMIsChecked(NSButton *checkbox) {
     self.loginCheck.state        = MMCheckState(s.mountAtLogin);
     self.reconnectCheck.state    = MMCheckState(s.reconnect);
 
-    if (!self.isNew) {
+    if (!self.isNew && s.proto != MMProtocolEFI) {
         NSString *existing = [MMKeychain passwordForShare:s];
         if (existing.length > 0) self.passwordField.stringValue = existing;
     }
@@ -242,21 +345,30 @@ static BOOL MMIsChecked(NSButton *checkbox) {
 
 - (MMShare *)shareFromFields {
     MMShare *s = [self.share copy];
-    s.name      = [self.nameField.stringValue stringByTrimmingCharactersInSet:
-                   [NSCharacterSet whitespaceCharacterSet]];
-    s.proto     = (MMProtocol)self.protocolPopUp.selectedTag;
-    s.sharePath = self.shareField.stringValue;
-    s.username  = [self.userField.stringValue stringByTrimmingCharactersInSet:
-                   [NSCharacterSet whitespaceCharacterSet]];
+    s.name  = [self.nameField.stringValue stringByTrimmingCharactersInSet:
+               [NSCharacterSet whitespaceCharacterSet]];
+    s.proto = (MMProtocol)self.protocolPopUp.selectedTag;
 
-    // O host pode ter porta colada junto ("servidor:445"); reaproveitamos o
-    // parser para não duplicar essa regra aqui.
-    MMShare *parsedHost = [MMShare shareWithUserInput:self.hostField.stringValue];
-    s.host = parsedHost.host;
-    s.port = parsedHost.port;
+    if (s.proto == MMProtocolEFI) {
+        s.diskIdentifier = [self.diskIdField.stringValue
+                            stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+        // Limpa campos de rede para não poluir o JSON com dados irrelevantes.
+        s.host = @""; s.sharePath = @""; s.username = nil;
+        s.guest = NO; s.savePassword = NO;
+    } else {
+        s.sharePath = self.shareField.stringValue;
+        s.username  = [self.userField.stringValue stringByTrimmingCharactersInSet:
+                       [NSCharacterSet whitespaceCharacterSet]];
 
-    s.guest         = MMIsChecked(self.guestCheck);
-    s.savePassword  = MMIsChecked(self.savePasswordCheck);
+        // O host pode ter porta colada junto ("servidor:445").
+        MMShare *parsedHost = [MMShare shareWithUserInput:self.hostField.stringValue];
+        s.host = parsedHost.host;
+        s.port = parsedHost.port;
+
+        s.guest        = MMIsChecked(self.guestCheck);
+        s.savePassword = MMIsChecked(self.savePasswordCheck);
+    }
+
     s.readOnly      = MMIsChecked(self.readOnlyCheck);
     s.hideOnDesktop = MMIsChecked(self.hideCheck);
     s.mountAtLogin  = MMIsChecked(self.loginCheck);
@@ -265,14 +377,28 @@ static BOOL MMIsChecked(NSButton *checkbox) {
 }
 
 - (void)updateEnabledStates {
-    BOOL guest = MMIsChecked(self.guestCheck);
     MMProtocol proto = (MMProtocol)self.protocolPopUp.selectedTag;
-    BOOL supportsAuth = (proto != MMProtocolNFS);
+    BOOL isEFI = (proto == MMProtocolEFI);
 
-    self.userField.enabled = !guest && supportsAuth;
-    self.passwordField.enabled = !guest && supportsAuth;
-    self.savePasswordCheck.enabled = !guest && supportsAuth && self.userField.stringValue.length > 0;
-    self.guestCheck.enabled = supportsAuth;
+    // Linhas de rede: visíveis só para protocolos de rede.
+    self.hostRow.hidden         = isEFI;
+    self.shareRow.hidden        = isEFI;
+    self.userRow.hidden         = isEFI;
+    self.passwordRow.hidden     = isEFI;
+    self.guestRow.hidden        = isEFI;
+    self.savePasswordRow.hidden = isEFI;
+    // Linha EFI: visível só para EFI.
+    self.diskIdRow.hidden = !isEFI;
+
+    if (!isEFI) {
+        BOOL guest = MMIsChecked(self.guestCheck);
+        BOOL supportsAuth = (proto != MMProtocolNFS);
+        self.userField.enabled = !guest && supportsAuth;
+        self.passwordField.enabled = !guest && supportsAuth;
+        self.savePasswordCheck.enabled = !guest && supportsAuth
+                                         && self.userField.stringValue.length > 0;
+        self.guestCheck.enabled = supportsAuth;
+    }
 }
 
 #pragma mark - Ações
@@ -287,6 +413,38 @@ static BOOL MMIsChecked(NSButton *checkbox) {
 
 - (void)controlTextDidChange:(NSNotification *)note {
     if (note.object == self.userField) [self updateEnabledStates];
+}
+
+/// Procura partições EFI disponíveis e abre um popup para o usuário escolher.
+- (void)scanDisks:(id)sender {
+    NSArray<NSDictionary *> *partitions = MMDiscoverEFIPartitions();
+    if (partitions.count == 0) {
+        MMShowWarning(NSLocalizedString(@"edit.noEFI", @"Nenhuma partição EFI encontrada"),
+                      NSLocalizedString(@"edit.noEFIHint",
+                          @"Verifique se há discos conectados e tente de novo. "
+                           "Você também pode digitar o identificador manualmente (ex.: disk0s1)."),
+                      self.sheet);
+        return;
+    }
+
+    NSAlert *alert = [[NSAlert alloc] init];
+    alert.messageText = NSLocalizedString(@"edit.selectEFI", @"Escolha uma partição EFI");
+
+    NSPopUpButton *popup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(0, 0, 280, 24)
+                                                      pullsDown:NO];
+    for (NSDictionary *p in partitions) {
+        [popup addItemWithTitle:p[@"label"]];
+        popup.lastItem.representedObject = p[@"diskId"];
+    }
+    alert.accessoryView = popup;
+    [alert addButtonWithTitle:NSLocalizedString(@"edit.use", @"Usar")];
+    [alert addButtonWithTitle:NSLocalizedString(@"alert.cancel", @"Cancelar")];
+
+    [alert beginSheetModalForWindow:self.sheet completionHandler:^(NSModalResponse resp) {
+        if (resp != NSAlertFirstButtonReturn) return;
+        NSString *diskId = popup.selectedItem.representedObject;
+        if (diskId.length > 0) self.diskIdField.stringValue = diskId;
+    }];
 }
 
 /// Quando o usuário cola um caminho inteiro no campo de servidor
@@ -328,7 +486,7 @@ static BOOL MMIsChecked(NSButton *checkbox) {
         return;
     }
 
-    NSString *password = self.passwordField.stringValue;
+    NSString *password = (candidate.proto != MMProtocolEFI) ? self.passwordField.stringValue : @"";
     NSError *keychainError = nil;
     NSString *keychainProblem = nil;
 

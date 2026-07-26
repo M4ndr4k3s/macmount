@@ -8,16 +8,16 @@ NSString *const MMPrefsDidChangeNotification = @"MMPrefsDidChangeNotification";
 
 static NSString *const MMKeyShowDockIcon = @"MMShowDockIcon";
 static NSString *const MMKeyNotifyOnLoginMount = @"MMNotifyOnLoginMount";
+static NSString *const MMKeyForceDarkMode = @"MMForceDarkMode";
 
 @implementation MMPrefs
 
 + (void)initialize {
     if (self != [MMPrefs class]) return;
-    // Ambas ligadas por padrão: quem não mexeu em nada espera o comportamento
-    // normal de um app com ícone no Dock que avisa quando faz algo sozinho.
     [[NSUserDefaults standardUserDefaults] registerDefaults:@{
         MMKeyShowDockIcon: @YES,
         MMKeyNotifyOnLoginMount: @YES,
+        MMKeyForceDarkMode: @YES,
     }];
 }
 
@@ -37,5 +37,8 @@ static NSString *const MMKeyNotifyOnLoginMount = @"MMNotifyOnLoginMount";
 
 + (BOOL)notifyOnLoginMount          { return [self boolForKey:MMKeyNotifyOnLoginMount]; }
 + (void)setNotifyOnLoginMount:(BOOL)v { [self setBool:v forKey:MMKeyNotifyOnLoginMount]; }
+
++ (BOOL)forceDarkMode          { return [self boolForKey:MMKeyForceDarkMode]; }
++ (void)setForceDarkMode:(BOOL)v { [self setBool:v forKey:MMKeyForceDarkMode]; }
 
 @end

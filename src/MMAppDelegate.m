@@ -16,6 +16,17 @@
 #import "MMStatusMenu.h"
 #import "MMStore.h"
 
+/// Aplica ou remove o tema escuro forçado no app inteiro.
+/// Requer 10.14; no High Sierra a guarda impede a execução em tempo de compilação.
+static void MMApplyAppearance(void) {
+    if (@available(macOS 10.14, *)) {
+        NSAppearanceName name = MMPrefs.forceDarkMode
+            ? NSAppearanceNameDarkAqua
+            : NSAppearanceNameAqua;
+        NSApp.appearance = [NSAppearance appearanceNamed:name];
+    }
+}
+
 @interface MMAppDelegate ()
 @property (nonatomic, strong) MMStatusMenu *statusMenu;
 @property (nonatomic, strong) MMReconnector *reconnector;
@@ -40,6 +51,8 @@
     // Início do sistema, que não passam nada — daí a segunda pergunta.
     self.startingWithSession = self.mountAtLoginMode || [self wasLaunchedAutomatically:notification];
 
+    MMApplyAppearance();
+
     [[MMCoordinator shared] startObservingVolumes];
     [MMLoginItem refreshIfInstalled];
 
@@ -51,6 +64,10 @@
     self.reconnector = [[MMReconnector alloc] init];
     [self.reconnector start];
 
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(applyAppearancePreference)
+                                                 name:MMPrefsDidChangeNotification
+                                               object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(applyDockIconPreference)
                                                  name:MMPrefsDidChangeNotification
@@ -112,6 +129,10 @@
 /// de apps, ficando só na barra de menus. O menu principal também deixa de ser
 /// exibido, mas continua montado de propósito — é ele que faz Cmd+C e Cmd+V
 /// funcionarem nos campos de texto da folha de edição.
+- (void)applyAppearancePreference {
+    MMApplyAppearance();
+}
+
 - (void)applyDockIconPreference {
     NSApplicationActivationPolicy wanted = MMPrefs.showDockIcon
         ? NSApplicationActivationPolicyRegular
