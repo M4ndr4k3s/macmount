@@ -218,6 +218,17 @@ static void MMParseMountFromName(NSString *from, NSString **outHost, NSString **
         NSString *user = snapshot.guest ? nil : (snapshot.username.length > 0 ? snapshot.username : nil);
         NSString *pass = snapshot.guest ? nil : (pw.length > 0 ? pw : nil);
 
+        // Registro de toda tentativa, não só das que falham. Sem Mac de
+        // desenvolvimento, o Console do usuário é o único lugar onde dá para ver
+        // o que o NetFS respondeu — e "não monta" pode ser erro, pode ser espera
+        // infinita, e as duas coisas pedem conserto diferente.
+        NSDate *startedAt = [NSDate date];
+        NSLog(@"[MacMount] montando %@ (usuário: %@, senha: %@, diálogo: %@)",
+              url.absoluteString,
+              snapshot.guest ? @"convidado" : (snapshot.username.length > 0 ? snapshot.username : @"nenhum"),
+              pw.length > 0 ? @"em mãos" : @"nenhuma",
+              allowUI ? @"permitido" : @"proibido");
+
         CFArrayRef rawPoints = NULL;
         int status = NetFSMountURLSync((__bridge CFURLRef)url,
                                        NULL,  // NULL => /Volumes/<share>
@@ -227,6 +238,11 @@ static void MMParseMountFromName(NSString *from, NSString **outHost, NSString **
                                        (__bridge CFMutableDictionaryRef)mountOptions,
                                        &rawPoints);
         NSArray *points = rawPoints ? CFBridgingRelease(rawPoints) : nil;
+
+        NSLog(@"[MacMount] %@ respondeu %d em %.1fs%@", url.absoluteString, status,
+              -[startedAt timeIntervalSinceNow],
+              status == 0 ? @"" : [NSString stringWithFormat:@" — %@",
+                                   [self messageForStatus:status]]);
 
         NSString *mountPoint = nil;
         NSError *error = nil;

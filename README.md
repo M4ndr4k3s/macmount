@@ -65,21 +65,31 @@ Detalhes que costumam travar a primeira conexão:
 - Na rede do Windows, o perfil precisa estar como **Rede privada**; em *Rede pública* o
   compartilhamento fica bloqueado pelo firewall.
 
-## A janela abre sozinha no login
+## O que acontece no início da sessão
 
-Não deveria. Com *Montar ao iniciar a sessão* marcada, o MacMount é lançado pelo LaunchAgent
-em `~/Library/LaunchAgents/com.mdksoftware.macmount.login.plist`, monta em silêncio e
-encerra — sem janela e sem ícone no Dock.
+Com *Montar ao iniciar a sessão* marcada, o MacMount monta o que está marcado **sem abrir
+janela nenhuma** e fica na barra de menus. Uma notificação avisa o resultado.
 
-Se ainda assim a janela aparecer no login, é porque o app também está nos **Itens de
-Início** do sistema, provavelmente adicionado à mão. Aí quem abre é o macOS, não o
-LaunchAgent, e ele abre o app normalmente. Remova em *Ajustes do Sistema › Geral › Itens de
-Início* (no High Sierra: *Preferências do Sistema › Usuários e Grupos › Itens de Início*) e
-deixe o controle com a caixa dentro do app.
+Até a v0.3.1 ele encerrava depois de montar. Não encerra mais, e a diferença importa: quem
+encerra perde o *Reconectar quando a rede voltar*, e é justamente no início da sessão — com
+o Wi-Fi recém associado e os nomes ainda sem resolver — que a primeira tentativa mais falha
+e uma segunda mais adianta.
+
+Isso vale tanto quando o app é aberto pelo nosso LaunchAgent
+(`~/Library/LaunchAgents/com.mdksoftware.macmount.login.plist`) quanto pelos **Itens de
+Início** do sistema, se você tiver adicionado o app lá à mão. Nos dois casos ele reconhece
+que está nascendo junto com a sessão e não mostra a janela.
+
+Se você tem as duas coisas — o LaunchAgent e o Item de Início —, pode deixar: a partir da
+v0.4.0 a segunda cópia percebe que já existe uma rodando e encerra na hora. Antes disso as
+duas subiam juntas e disputavam a montagem do mesmo compartilhamento, o que travava a
+montagem e ainda fazia a janela aparecer. Mesmo assim, o mais limpo é deixar só a caixa
+dentro do app e remover o Item de Início em *Ajustes do Sistema › Geral › Itens de Início*
+(no High Sierra: *Preferências do Sistema › Usuários e Grupos › Itens de Início*).
 
 Se não houver senha guardada no Keychain, o diálogo de autenticação **do sistema** pode
-aparecer no login — esse não é uma janela do MacMount, é o macOS pedindo a credencial, e é o
-que permite a montagem acontecer. Guardar a senha no Keychain elimina o pedido.
+aparecer — esse não é uma janela do MacMount, é o macOS pedindo a credencial, e é o que
+permite a montagem acontecer. Guardar a senha no Keychain elimina o pedido.
 
 ## Um compartilhamento fica em "Montando…" e não sai dali
 
@@ -101,6 +111,25 @@ O que fazer quando aparecer:
   nome de PC Windows é o que mais demora a ficar pronto depois de um boot.
 - Marque **Reconectar quando a rede voltar** nas entradas que vivem montadas, para o app
   tentar sozinho quando a rede estabilizar em vez de depender do primeiro instante do login.
+
+### Se acontecer de novo, o Console conta o que foi
+
+A partir da v0.4.0 toda tentativa de montagem é registrada, tenha dado certo ou não. Abra o
+**Console.app** e filtre por `MacMount`; as linhas úteis começam com `[MacMount]`:
+
+```
+[MacMount] montando smb://SERVIDOR/Publico (usuário: leandro, senha: em mãos, diálogo: proibido)
+[MacMount] smb://SERVIDOR/Publico respondeu 0 em 1.2s
+```
+
+O que cada coisa diz:
+
+- **`senha: nenhuma`** quando você marcou *Guardar a senha no Keychain* — o Keychain recusou
+  a leitura, e a montagem vai cair no diálogo do sistema. Veja a seção seguinte.
+- **`respondeu <código>`** com código diferente de 0 — é erro de verdade, com a explicação
+  do lado.
+- **Nenhuma linha `respondeu`** depois da linha `montando` — a chamada do sistema travou. O
+  app libera a entrada em 90s e registra `não respondeu em 90s`.
 
 ## Senha guardada, e o app pede de novo
 

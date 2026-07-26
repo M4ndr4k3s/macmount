@@ -42,7 +42,7 @@ src/
   MMStatusMenu     NSStatusItem, ícone desenhado em código, preferências
   MMMainMenu       a barra do topo; fica montada mesmo sem ícone no Dock
   MMAlerts         MMShowWarning / MMConfirmWarning — os dois alertas do app
-  MMLoginMount     o modo --mount-at-login inteiro: monta, avisa e devolve
+  MMLoginMount     montagem do início da sessão: monta calado, avisa e devolve
   MMSmokeTest      o --smoke: constrói a interface fora da tela e confere
   MMAppDelegate    só o ciclo de vida: política do Dock, observadores, encerrar
 ```
@@ -64,6 +64,24 @@ sem erro, sem log, só um comportamento que some:
 - **`MMMountStateTitle` / `MMMountStateActionTitle`** (`MMCoordinator.h`) dão nome aos
   estados. A janela e o menu da barra mostram o mesmo estado e não podem chamá-lo
   diferente.
+
+### Abrir junto com a sessão
+
+Duas portas levam ao mesmo lugar: o LaunchAgent, que passa `--mount-at-login`, e os Itens de
+Início do sistema, que não passam nada — esses são reconhecidos por
+`NSApplicationLaunchIsDefaultLaunchKey` valendo NO. Nos dois casos o app monta o que está
+marcado e **não abre janela**, ficando na barra de menus.
+
+Ele não encerra depois de montar (encerrava até a v0.3.1): sair levaria junto o
+`MMReconnector`, e o início da sessão é justamente quando a primeira tentativa mais falha.
+Enquanto `startingWithSession` estiver ligado o app não rouba foco nem atende pedido de
+reabertura; ao terminar, `MMCoordinator.silent` volta a NO, senão o resto da sessão ficaria
+sem alerta nenhum de erro.
+
+O `applicationDidFinishLaunching:` encerra na hora se já houver outra cópia do mesmo bundle
+rodando. O launchd inicia o executável direto, por dentro do pacote, sem passar pelo
+LaunchServices — então nada deduplica, e LaunchAgent mais Item de Início subiam duas cópias
+disputando a montagem do mesmo compartilhamento.
 
 ### Operação em trânsito tem prazo
 

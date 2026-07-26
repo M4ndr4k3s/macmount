@@ -242,6 +242,18 @@ static NSTimeInterval const MMOperationSweepInterval = 1.0;
     NSUInteger generation = [self beginOperation:MMMountStateMounting forShare:share];
 
     NSString *password = share.savePassword ? [MMKeychain passwordForShare:share] : nil;
+
+    // Senha marcada para guardar que não volta do Keychain é o defeito mais
+    // enganoso deste app: a montagem cai no diálogo do sistema, que pode nascer
+    // atrás de tudo, e o sintoma vira "não monta" sem erro nenhum na tela. A
+    // causa quase sempre é a assinatura ad-hoc, que muda a cada atualização e
+    // faz o macOS tratar a versão nova como outro aplicativo.
+    if (share.savePassword && password.length == 0 &&
+        [MMKeychain canStorePasswordForShare:share]) {
+        NSLog(@"[MacMount] %@ está marcado para guardar a senha, mas o Keychain não "
+               "devolveu nenhuma. Vai cair no diálogo do sistema.", share.displayName);
+    }
+
     // Com senha em mãos, tentamos sem interface. Sem senha, deixamos o diálogo
     // do sistema pedir — é o mesmo que o Finder faz.
     [self attemptMount:share password:password allowUI:(password.length == 0)
