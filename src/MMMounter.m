@@ -120,6 +120,14 @@ static void MMParseMountFromName(NSString *from, NSString **outHost, NSString **
 
 @implementation MMMounter
 
++ (BOOL)operationSettledMounting:(BOOL)mounting
+                         mounted:(BOOL)mounted
+                         elapsed:(NSTimeInterval)elapsed
+                         timeout:(NSTimeInterval)timeout {
+    if (elapsed >= timeout) return YES;
+    return mounting ? mounted : !mounted;
+}
+
 + (BOOL)mountFromName:(NSString *)fromName
           matchesHost:(NSString *)host
                 share:(NSString *)sharePath {

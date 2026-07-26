@@ -65,6 +65,20 @@ sem erro, sem log, só um comportamento que some:
   estados. A janela e o menu da barra mostram o mesmo estado e não podem chamá-lo
   diferente.
 
+### Operação em trânsito tem prazo
+
+"Montando…" e "Desmontando…" vivem no `MMCoordinator.pending`, nunca em disco, e **o
+sistema tem sempre a palavra final**: se o volume aparece, acabou, mesmo que o bloco de
+conclusão não tenha voltado. Passados 90s (`MMOperationTimeout`), o app desiste de esperar
+e volta a confiar no `getfsstat`.
+
+Isso não é zelo: `NetFSMountURLSync` é síncrono e não aceita prazo, e sem esse corte uma
+montagem travada prendia a entrada para sempre — com o botão desativado, porque todo
+caminho de ação (`mountShare:`, `toggleShare:`, `mountAll`, `reconnectFlaggedSharesSilently`)
+só age sobre o que está parado. Cada tentativa carrega um número (`generation`); resposta
+de tentativa vencida é registrada no log e descartada, para não apagar o estado de uma
+tentativa mais nova nem abrir alerta fora de hora.
+
 ## Onde cada coisa é gravada
 
 | O quê | Onde | Chave |

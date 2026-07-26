@@ -29,6 +29,12 @@ de um MacBook Air 2011 com High Sierra. O que o uso pediu em seguida:
 
 ## Fase 3 — Candidatos
 
+- **Montagem cancelável de verdade.** O `MMMounter` usa `NetFSMountURLSync`, síncrono e sem
+  prazo. Quando ele trava, a v0.3.1 apenas para de esperar depois de 90s e devolve a entrada
+  ao usuário — mas a thread bloqueada continua lá até o NetFS desistir sozinho, e o app não
+  tem como abortá-la. O certo é `NetFSMountURLAsync`, que devolve um identificador de
+  requisição aceito pelo `NetFSMountURLCancel`: aí o prazo cancelaria a operação em vez de
+  só ignorá-la, e "Cancelar" viraria um botão de verdade na linha.
 - **Perfis por rede**: montar só quando estiver em determinado Wi-Fi ou faixa de IP
 - **Encontrar PCs Windows na rede.** O Bonjour só acha macOS, Samba e NAS; o Windows não
   anuncia por lá. Cobrir isso exigiria WS-Discovery (o que o Explorer passou a usar depois
