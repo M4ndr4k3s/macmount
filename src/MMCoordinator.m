@@ -33,10 +33,39 @@ NSString *MMMountStateActionTitle(MMMountState state) {
     }
 }
 
+/// Prazo de uma operação em trânsito. `NetFSMountURLSync` é síncrono e não
+/// aceita prazo nenhum: contra um servidor que sumiu, um nome que ainda não
+/// resolve — o caso típico logo depois de um reinício, com o Wi-Fi recém
+/// associado — ou um diálogo de credencial que nasceu atrás das outras janelas,
+/// ele fica muito tempo sem responder. Passado este prazo o app para de esperar
+/// e volta a confiar no que o sistema diz, liberando nova tentativa.
+///
+/// Generoso de propósito: montagem legítima de servidor lento leva dezenas de
+/// segundos, e desistir cedo demais transformaria lentidão em erro.
+static NSTimeInterval const MMOperationTimeout = 90.0;
+
+/// De quanto em quanto tempo as operações em trânsito são reavaliadas. Só roda
+/// enquanto existe alguma.
+static NSTimeInterval const MMOperationSweepInterval = 1.0;
+
+/// Uma montagem ou desmontagem em andamento.
+@interface MMPendingOperation : NSObject
+@property (nonatomic, assign) MMMountState state;
+@property (nonatomic, strong) NSDate *startedAt;
+/// Cada tentativa recebe um número. Uma tentativa que travou e respondeu tarde
+/// não pode mexer no estado de outra que começou depois dela.
+@property (nonatomic, assign) NSUInteger generation;
+@end
+
+@implementation MMPendingOperation
+@end
+
 @interface MMCoordinator ()
-/// Só estados transitórios; "montado" é sempre perguntado ao sistema, nunca
+/// Só operações em trânsito; "montado" é sempre perguntado ao sistema, nunca
 /// guardado — assim o app não mente quando alguém desmonta pelo Finder.
-@property (nonatomic, strong) NSMutableDictionary<NSString *, NSNumber *> *transient;
+@property (nonatomic, strong) NSMutableDictionary<NSString *, MMPendingOperation *> *pending;
+@property (nonatomic, strong, nullable) NSTimer *sweepTimer;
+@property (nonatomic, assign) NSUInteger lastGeneration;
 @end
 
 // Os blocos de conclusão abaixo capturam self sem __weak de propósito: o
@@ -57,7 +86,7 @@ NSString *MMMountStateActionTitle(MMMountState state) {
 - (instancetype)init {
     self = [super init];
     if (self) {
-        _transient = [NSMutableDictionary dictionary];
+        _pending = [NSMutableDictionary dictionary];
     }
     return self;
 }
@@ -87,28 +116,106 @@ NSString *MMMountStateActionTitle(MMMountState state) {
 
 #pragma mark - Estado
 
+/// O sistema tem a palavra final. A operação em trânsito só é levada em conta
+/// enquanto ainda faz sentido — ver +operationSettledMounting:… no MMMounter.
 - (MMMountState)stateForShare:(MMShare *)share {
-    NSNumber *pending = self.transient[share.identifier];
-    if (pending != nil) return (MMMountState)pending.integerValue;
-    return [MMMounter mountPointForShare:share] != nil ? MMMountStateMounted
-                                                       : MMMountStateUnmounted;
+    BOOL mounted = ([MMMounter mountPointForShare:share] != nil);
+
+    MMPendingOperation *op = self.pending[share.identifier];
+    if (op != nil && ![self operation:op settledWithMounted:mounted]) return op.state;
+
+    return mounted ? MMMountStateMounted : MMMountStateUnmounted;
+}
+
+- (BOOL)operation:(MMPendingOperation *)op settledWithMounted:(BOOL)mounted {
+    return [MMMounter operationSettledMounting:(op.state == MMMountStateMounting)
+                                       mounted:mounted
+                                       elapsed:-[op.startedAt timeIntervalSinceNow]
+                                       timeout:MMOperationTimeout];
 }
 
 - (nullable NSString *)mountPointForShare:(MMShare *)share {
     return [MMMounter mountPointForShare:share];
 }
 
-- (void)setTransientState:(MMMountState)state forShare:(MMShare *)share {
-    self.transient[share.identifier] = @(state);
+/// Abre uma operação e devolve o número dela, que o bloco de conclusão precisa
+/// apresentar depois para provar que ainda é a tentativa vigente.
+- (NSUInteger)beginOperation:(MMMountState)state forShare:(MMShare *)share {
+    MMPendingOperation *op = [[MMPendingOperation alloc] init];
+    op.state = state;
+    op.startedAt = [NSDate date];
+    op.generation = ++self.lastGeneration;
+
+    self.pending[share.identifier] = op;
+    [self startSweeping];
+    [self notifyChanged];
+    return op.generation;
+}
+
+- (BOOL)isCurrentOperation:(NSUInteger)generation forShare:(MMShare *)share {
+    MMPendingOperation *op = self.pending[share.identifier];
+    return op != nil && op.generation == generation;
+}
+
+- (void)endOperation:(NSUInteger)generation forShare:(MMShare *)share {
+    if (![self isCurrentOperation:generation forShare:share]) return;
+    [self.pending removeObjectForKey:share.identifier];
     [self notifyChanged];
 }
 
 - (BOOL)hasPendingOperations {
-    return self.transient.count > 0;
+    return self.pending.count > 0;
 }
 
-- (void)clearTransientStateForShare:(MMShare *)share {
-    [self.transient removeObjectForKey:share.identifier];
+#pragma mark - Varredura das operações em trânsito
+
+/// Sem isto, uma operação que vence o prazo — ou que o sistema já resolveu por
+/// outro caminho — só apareceria na tela no próximo evento de volume, que pode
+/// nunca vir. O relógio existe só enquanto há o que vigiar.
+- (void)startSweeping {
+    if (self.sweepTimer != nil) return;
+    self.sweepTimer = [NSTimer scheduledTimerWithTimeInterval:MMOperationSweepInterval
+                                                       target:self
+                                                     selector:@selector(sweepPendingOperations:)
+                                                     userInfo:nil
+                                                      repeats:YES];
+}
+
+- (void)sweepPendingOperations:(NSTimer *)timer {
+    if (self.pending.count == 0) {
+        [timer invalidate];
+        self.sweepTimer = nil;
+        return;
+    }
+
+    NSMutableArray<NSString *> *finished = [NSMutableArray array];
+
+    for (MMShare *share in [MMStore shared].shares) {
+        MMPendingOperation *op = self.pending[share.identifier];
+        if (op == nil) continue;
+
+        BOOL mounted = ([MMMounter mountPointForShare:share] != nil);
+        if (![self operation:op settledWithMounted:mounted]) continue;
+
+        BOOL gaveUp = (op.state == MMMountStateMounting && !mounted)
+                   || (op.state == MMMountStateUnmounting && mounted);
+        if (gaveUp) {
+            NSLog(@"[MacMount] %@ não respondeu em %.0fs; liberando para nova tentativa.",
+                  share.displayName, MMOperationTimeout);
+        }
+        [finished addObject:share.identifier];
+    }
+
+    // Entradas apagadas da lista enquanto a operação corria não aparecem no laço
+    // acima e ficariam presas aqui para sempre.
+    for (NSString *identifier in self.pending.allKeys) {
+        if ([[MMStore shared] shareWithIdentifier:identifier] == nil) {
+            [finished addObject:identifier];
+        }
+    }
+
+    if (finished.count == 0) return;
+    [self.pending removeObjectsForKeys:finished];
     [self notifyChanged];
 }
 
@@ -132,31 +239,52 @@ NSString *MMMountStateActionTitle(MMMountState state) {
         return;
     }
 
-    [self setTransientState:MMMountStateMounting forShare:share];
+    NSUInteger generation = [self beginOperation:MMMountStateMounting forShare:share];
 
     NSString *password = share.savePassword ? [MMKeychain passwordForShare:share] : nil;
     // Com senha em mãos, tentamos sem interface. Sem senha, deixamos o diálogo
     // do sistema pedir — é o mesmo que o Finder faz.
-    [self attemptMount:share password:password allowUI:(password.length == 0)];
+    [self attemptMount:share password:password allowUI:(password.length == 0)
+            generation:generation];
 }
 
-- (void)attemptMount:(MMShare *)share password:(nullable NSString *)password allowUI:(BOOL)allowUI {
+- (void)attemptMount:(MMShare *)share
+            password:(nullable NSString *)password
+             allowUI:(BOOL)allowUI
+          generation:(NSUInteger)generation {
+
+    // Se a montagem pode abrir o diálogo de credencial do sistema, o app precisa
+    // estar à frente. Vivendo só na barra de menus, ou logo depois de um
+    // reinício com tudo se restaurando, esse diálogo nasce atrás das outras
+    // janelas — e o NetFS fica parado esperando uma resposta que ninguém vê.
+    if (allowUI && !self.silent) [NSApp activateIgnoringOtherApps:YES];
+
     [MMMounter mountShare:share password:password allowUI:allowUI
                completion:^(NSString *_Nullable mountPoint, NSError *_Nullable error) {
+        // Tentativa abandonada por tempo, e já substituída: o resultado chegou
+        // tarde demais para mexer na tela ou falar com o usuário.
+        if (![self isCurrentOperation:generation forShare:share]) {
+            NSLog(@"[MacMount] resposta atrasada de %@ ignorada: %@", share.displayName,
+                  error != nil ? error.localizedDescription : @"montou");
+            return;
+        }
+
         if (error == nil) {
-            [self clearTransientStateForShare:share];
+            [self endOperation:generation forShare:share];
             return;
         }
 
         // Senha guardada recusada: repete deixando o sistema perguntar, em vez
-        // de exigir que o usuário vá até as configurações trocar a senha.
+        // de exigir que o usuário vá até as configurações trocar a senha. A
+        // segunda tentativa herda o número da primeira, porque é a mesma
+        // operação do ponto de vista de quem está olhando a lista.
         BOOL authFailed = (error.code == EAUTH || error.code == EACCES || error.code == EPERM);
         if (authFailed && !allowUI && !self.silent) {
-            [self attemptMount:share password:nil allowUI:YES];
+            [self attemptMount:share password:nil allowUI:YES generation:generation];
             return;
         }
 
-        [self clearTransientStateForShare:share];
+        [self endOperation:generation forShare:share];
         if (error.code != ECANCELED && error.code != -128) {
             [self reportTitle:[NSString stringWithFormat:
                                NSLocalizedString(@"alert.mountFailedFmt", @"Falha ao montar “%@”"),
@@ -168,15 +296,13 @@ NSString *MMMountStateActionTitle(MMMountState state) {
 
 - (void)unmountShare:(MMShare *)share {
     NSString *path = [MMMounter mountPointForShare:share];
-    if (path == nil) {
-        [self clearTransientStateForShare:share];
-        return;
-    }
+    if (path == nil) return;
 
-    [self setTransientState:MMMountStateUnmounting forShare:share];
+    NSUInteger generation = [self beginOperation:MMMountStateUnmounting forShare:share];
 
     [MMMounter unmountPath:path force:NO completion:^(NSError *_Nullable error) {
-        [self clearTransientStateForShare:share];
+        if (![self isCurrentOperation:generation forShare:share]) return;
+        [self endOperation:generation forShare:share];
         if (error == nil) return;
 
         if (self.silent) {
@@ -199,10 +325,11 @@ NSString *MMMountStateActionTitle(MMMountState state) {
 
     if (!MMConfirmWarning(title, message, NSLocalizedString(@"alert.force", @"Forçar"))) return;
 
-    [self setTransientState:MMMountStateUnmounting forShare:share];
+    NSUInteger generation = [self beginOperation:MMMountStateUnmounting forShare:share];
 
     [MMMounter unmountPath:path force:YES completion:^(NSError *_Nullable error) {
-        [self clearTransientStateForShare:share];
+        if (![self isCurrentOperation:generation forShare:share]) return;
+        [self endOperation:generation forShare:share];
         if (error != nil) {
             [self reportTitle:NSLocalizedString(@"alert.unmountFailed", @"Falha ao desmontar")
                       message:error.localizedDescription];
@@ -253,11 +380,12 @@ NSString *MMMountStateActionTitle(MMMountState state) {
         NSString *password = share.savePassword ? [MMKeychain passwordForShare:share] : nil;
         if (!share.guest && password.length == 0) return;
 
-        [self setTransientState:MMMountStateMounting forShare:share];
+        NSUInteger generation = [self beginOperation:MMMountStateMounting forShare:share];
 
         [MMMounter mountShare:share password:password allowUI:NO
                    completion:^(NSString *_Nullable mountPoint, NSError *_Nullable error) {
-            [self clearTransientStateForShare:share];
+            if (![self isCurrentOperation:generation forShare:share]) return;
+            [self endOperation:generation forShare:share];
             if (error != nil) {
                 // Silêncio é proposital: a rede pode ter voltado pela metade e
                 // a próxima tentativa vem no próximo evento.

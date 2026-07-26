@@ -271,6 +271,46 @@ static void testStatusMessages(void) {
                      @"userCanceledErr e ECANCELED dão a mesma mensagem");
 }
 
+#pragma mark - Operação em trânsito
+
+/// A regra que decide quando parar de mostrar "Montando…". Um bug real veio
+/// daqui: o estado em trânsito valia mais que a realidade e nunca vencia, então
+/// uma montagem que travava deixava a entrada presa para sempre — e, como o app
+/// só age sobre o que está parado, nem clicar de novo adiantava.
+static void testOperationSettled(void) {
+    section(@"Fim de uma operação em trânsito");
+
+    NSTimeInterval const timeout = 90.0;
+
+    checkBool(![MMMounter operationSettledMounting:YES mounted:NO elapsed:1.0 timeout:timeout],
+              @"montando e ainda não montado: continua esperando");
+    checkBool([MMMounter operationSettledMounting:YES mounted:YES elapsed:1.0 timeout:timeout],
+              @"montando e o volume apareceu: acabou, mesmo sem o bloco ter voltado");
+
+    checkBool(![MMMounter operationSettledMounting:NO mounted:YES elapsed:1.0 timeout:timeout],
+              @"desmontando e o volume ainda existe: continua esperando");
+    checkBool([MMMounter operationSettledMounting:NO mounted:NO elapsed:1.0 timeout:timeout],
+              @"desmontando e o volume sumiu: acabou");
+
+    // O corte por tempo é o que impede o travamento eterno, e vale nos dois
+    // sentidos: passado o prazo, o app volta a acreditar no sistema.
+    checkBool([MMMounter operationSettledMounting:YES mounted:NO elapsed:timeout timeout:timeout],
+              @"montagem que não respondeu no prazo é liberada");
+    checkBool([MMMounter operationSettledMounting:YES mounted:NO elapsed:timeout + 60.0 timeout:timeout],
+              @"continua liberada bem depois do prazo");
+    checkBool([MMMounter operationSettledMounting:NO mounted:YES elapsed:timeout timeout:timeout],
+              @"desmontagem que não respondeu no prazo é liberada");
+
+    // Um instante antes do prazo ainda é espera — o corte não pode adiantar.
+    checkBool(![MMMounter operationSettledMounting:YES mounted:NO
+                                           elapsed:timeout - 0.5 timeout:timeout],
+              @"meio segundo antes do prazo ainda está esperando");
+
+    // Servidor lento é lentidão, não erro: dezenas de segundos têm que caber.
+    checkBool(![MMMounter operationSettledMounting:YES mounted:NO elapsed:45.0 timeout:timeout],
+              @"montagem legítima de servidor lento não é cortada aos 45s");
+}
+
 #pragma mark - Persistência e validação
 
 static void testRoundTrip(void) {
@@ -508,6 +548,7 @@ int main(int argc, const char *argv[]) {
         testHostAndPathHelpers();
         testMountMatching();
         testStatusMessages();
+        testOperationSettled();
         testRoundTrip();
         testCopy();
         testValidation();

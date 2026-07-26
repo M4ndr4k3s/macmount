@@ -81,6 +81,27 @@ Se não houver senha guardada no Keychain, o diálogo de autenticação **do sis
 aparecer no login — esse não é uma janela do MacMount, é o macOS pedindo a credencial, e é o
 que permite a montagem acontecer. Guardar a senha no Keychain elimina o pedido.
 
+## Um compartilhamento fica em "Montando…" e não sai dali
+
+Acontece com mais frequência logo depois de reiniciar o Mac, e costuma pegar só alguns dos
+compartilhamentos. A causa está na própria chamada que monta: `NetFSMountURLSync` é
+síncrona e não aceita prazo nenhum. Contra um servidor que ainda não acordou, um nome que
+ainda não resolve — Wi-Fi recém associado, DNS e NetBIOS ainda mudos — ou um pedido de
+senha que nasceu atrás das outras janelas, ela fica minutos sem devolver resposta.
+
+A partir da **v0.3.1** o app não fica preso nisso. Passados 90 segundos sem resposta, a
+entrada volta a mostrar o estado real e fica clicável de novo, e o Console registra qual
+foi. Antes disso ela travava até o app ser encerrado — e o botão ficava desativado, então
+nem clicar de novo adiantava.
+
+O que fazer quando aparecer:
+
+- **Espere e clique em Montar de novo.** Na segunda tentativa a rede já costuma estar de pé.
+- Se repetir sempre com o mesmo servidor, cadastre-o **pelo IP** em vez do nome: resolver
+  nome de PC Windows é o que mais demora a ficar pronto depois de um boot.
+- Marque **Reconectar quando a rede voltar** nas entradas que vivem montadas, para o app
+  tentar sozinho quando a rede estabilizar em vez de depender do primeiro instante do login.
+
 ## Senha guardada, e o app pede de novo
 
 Sintoma: você marca *Guardar a senha no Keychain*, funciona, e depois de **atualizar o
