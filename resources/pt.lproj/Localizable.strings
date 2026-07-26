@@ -10,6 +10,7 @@
 "proto.nfs"     = "NFS (Unix)";
 "proto.webdav"  = "WebDAV";
 "proto.webdavs" = "WebDAV (HTTPS)";
+"proto.efi"     = "Disco Local / EFI";
 
 /* Modelo */
 "share.untitled"   = "Novo compartilhamento";
@@ -22,6 +23,7 @@
 "validate.badPort"  = "Porta inválida.";
 "validate.noExport" = "Informe o caminho exportado.";
 "validate.badURL"   = "Não foi possível montar um endereço válido.";
+"validate.noDisk"   = "Informe o identificador do disco (ex.: disk0s1).";
 
 /* Resultado da montagem */
 "mount.ok"            = "Montado.";
@@ -46,6 +48,7 @@
 "mount.netauthFailed" = "O sistema não conseguiu concluir a montagem.";
 "mount.errnoFmt"      = "Falha ao montar: %s (%d)";
 "mount.unknownFmt"    = "Falha ao montar (código %d).";
+"mount.efiDenied"     = "Não foi possível montar a partição. Verifique se o identificador está correto e tente novamente.";
 
 /* Keychain */
 "keychain.cannotStore" = "Não é possível guardar senha para esta entrada.";
@@ -71,10 +74,12 @@
 "edit.share"           = "Compartilhamento:";
 "edit.user"            = "Usuário:";
 "edit.password"        = "Senha:";
+"edit.disk"            = "Disco:";
 "edit.namePlaceholder" = "Opcional";
 "edit.hostPlaceholder" = "servidor.local, 192.168.0.10 ou \\\\SERVIDOR\\Publico";
 "edit.sharePlaceholder" = "Publico";
 "edit.userPlaceholder" = "Deixe vazio para perguntar";
+"edit.diskIdPlaceholder" = "disk0s1 ou EFI";
 "edit.guest"           = "Conectar como convidado";
 "edit.savePassword"    = "Guardar a senha no Keychain";
 "edit.readOnly"        = "Montar somente leitura";
@@ -83,6 +88,11 @@
 "edit.reconnect"       = "Reconectar quando a rede voltar";
 "edit.save"            = "Salvar";
 "edit.invalid"         = "Entrada incompleta";
+"edit.scanDisks"       = "Procurar…";
+"edit.selectEFI"       = "Escolha uma partição EFI";
+"edit.use"             = "Usar";
+"edit.noEFI"           = "Nenhuma partição EFI encontrada";
+"edit.noEFIHint"       = "Nenhuma partição EFI foi encontrada neste computador. Verifique se o disco está conectado e tente de novo.";
 
 /* Janela principal */
 "column.share"      = "Compartilhamento";
@@ -125,6 +135,7 @@
 
 /* Preferências e notificações */
 "menu.showDockIcon" = "Mostrar ícone no Dock";
+"menu.darkMode"     = "Interface escura";
 "menu.notifyOnLogin" = "Avisar ao montar no login";
 "notify.oneMounted"  = "1 compartilhamento montado.";
 "notify.allMountedFmt" = "%lu compartilhamentos montados.";
