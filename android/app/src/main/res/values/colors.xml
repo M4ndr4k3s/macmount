@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mesma identidade visual do MacMount: teal sobre fundo escuro. -->
+    <color name="background">#0f1115</color>
+    <color name="surface">#171a20</color>
+    <color name="surface_selected">#122a26</color>
+    <color name="accent">#00C4A0</color>
+    <color name="accent_dark">#007A68</color>
+    <color name="text_primary">#F2F4F7</color>
+    <color name="text_secondary">#9AA3AF</color>
+</resources>
