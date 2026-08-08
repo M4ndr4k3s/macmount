@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Radar Bluetooth</string>
+    <string name="app_name">kdmeu</string>
 
     <string name="start_scan">Procurar</string>
     <string name="stop_scan">Parar</string>

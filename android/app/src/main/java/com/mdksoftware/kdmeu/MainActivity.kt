@@ -1,4 +1,4 @@
-package com.mdksoftware.btradar
+package com.mdksoftware.kdmeu
 
 import android.bluetooth.BluetoothAdapter
 import android.content.Intent
@@ -10,7 +10,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.mdksoftware.btradar.databinding.ActivityMainBinding
+import com.mdksoftware.kdmeu.databinding.ActivityMainBinding
 
 /**
  * Tela única: lista de aparelhos ordenada por intensidade, e um painel de rastreio para o

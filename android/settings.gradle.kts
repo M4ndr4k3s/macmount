@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "BtRadar"
+rootProject.name = "kdmeu"
 include(":app")

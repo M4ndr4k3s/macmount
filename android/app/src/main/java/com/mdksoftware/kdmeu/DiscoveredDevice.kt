@@ -1,4 +1,4 @@
-package com.mdksoftware.btradar
+package com.mdksoftware.kdmeu
 
 /** Origem da leitura: anúncio BLE ou descoberta Bluetooth clássica. */
 enum class Discovery { LE, CLASSIC }

@@ -1,4 +1,4 @@
-package com.mdksoftware.btradar
+package com.mdksoftware.kdmeu
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

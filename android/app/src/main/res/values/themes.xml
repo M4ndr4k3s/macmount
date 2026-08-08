@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.BtRadar" parent="Theme.Material3.Dark.NoActionBar">
+    <style name="Theme.Kdmeu" parent="Theme.Material3.Dark.NoActionBar">
         <item name="colorPrimary">@color/accent</item>
         <item name="colorOnPrimary">#00201B</item>
         <item name="android:colorBackground">@color/background</item>

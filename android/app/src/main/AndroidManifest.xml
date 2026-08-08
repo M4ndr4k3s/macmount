@@ -27,7 +27,7 @@
         android:allowBackup="false"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.BtRadar">
+        android:theme="@style/Theme.Kdmeu">
 
         <activity
             android:name=".MainActivity"

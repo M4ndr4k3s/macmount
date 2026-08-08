@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.mdksoftware.btradar"
+    namespace = "com.mdksoftware.kdmeu"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.mdksoftware.btradar"
+        applicationId = "com.mdksoftware.kdmeu"
         minSdk = 23
         targetSdk = 34
         versionCode = 1

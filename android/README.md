@@ -1,4 +1,4 @@
-# Radar Bluetooth (Android)
+# kdmeu (Android)
 
 App Android para **achar celulares pela intensidade do sinal Bluetooth**. Lista os aparelhos
 por perto ordenados do sinal mais forte para o mais fraco e, ao tocar num deles, entra em modo
@@ -58,7 +58,7 @@ gradle :app:testDebugUnitTest
 ## Mapa dos arquivos
 
 ```
-app/src/main/java/com/mdksoftware/btradar/
+app/src/main/java/com/mdksoftware/kdmeu/
   Signal.kt            suavização, distância estimada, faixas de proximidade  ← lógica pura, testada
   DiscoveredDevice.kt  modelo + DeviceRegistry (estado das leituras)          ← lógica pura, testada
   BtScanner.kt         varredura BLE + descoberta clássica, permissões

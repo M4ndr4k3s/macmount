@@ -1,4 +1,4 @@
-package com.mdksoftware.btradar
+package com.mdksoftware.kdmeu
 
 import android.Manifest
 import android.annotation.SuppressLint

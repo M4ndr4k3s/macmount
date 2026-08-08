@@ -1,4 +1,4 @@
-package com.mdksoftware.btradar
+package com.mdksoftware.kdmeu
 
 import kotlin.math.pow
 
