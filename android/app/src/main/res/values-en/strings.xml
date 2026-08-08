@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Bluetooth Radar</string>
+
+    <string name="start_scan">Scan</string>
+    <string name="stop_scan">Stop</string>
+    <string name="clear">Clear</string>
+    <string name="only_phones">Phones only</string>
+
+    <string name="idle">Idle. Tap Scan to start.</string>
+    <string name="searching">Scanning…</string>
+    <string name="no_bluetooth">This device has no Bluetooth.</string>
+    <string name="permission_denied">Scanning needs the Bluetooth permission.</string>
+
+    <plurals name="found_devices">
+        <item quantity="one">%d device nearby</item>
+        <item quantity="other">%d devices nearby</item>
+    </plurals>
+
+    <string name="unknown_device">Unnamed device</string>
+    <string name="kind_phone">Phone</string>
+    <string name="kind_other">Other</string>
+
+    <string name="rssi_format">%d dBm</string>
+    <string name="distance_format">~%.1f m</string>
+    <string name="percent_format">%d%%</string>
+    <string name="tracker_detail_format">%1$d dBm · ~%2$.1f m</string>
+    <string name="tracker_hint">Walk slowly: the fuller the bar, the closer you are. Tap again to release.</string>
+
+    <string name="proximity_immediate">Right here</string>
+    <string name="proximity_near">Near</string>
+    <string name="proximity_far">Far</string>
+    <string name="proximity_unknown">No signal</string>
+</resources>
